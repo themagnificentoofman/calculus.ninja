@@ -5,14 +5,19 @@ import { firestoreStore, serviceAccountToken, StoreError } from '@/lib/server/fi
 import { createServerGames } from '@/lib/server/game-engine';
 import { isolatedQaStore, QA_UIDS } from '@/lib/server/operator-qa';
 import { consumeMutationQuota } from '@/lib/server/quota';
-import {withdrawReleaseFixtures} from '@/lib/server/qa-public-profile';
+import {inspectReleaseFixtures,withdrawReleaseFixtures} from '@/lib/server/qa-public-profile';
 import { createGameApi } from '@/lib/server/game-api';
 export const dynamic = 'force-dynamic';
 export const POST = async (request: Request) => {
-  const retire = request.headers.get('x-qa-operation') === 'withdraw-release-fixtures';
-  const authorized = await authorizeRuntimeQa(request, retire ? env.QA_WITHDRAWAL_PUBLIC_KEY : env.RUNTIME_QA_PUBLIC_KEY,
-    retire ? env.QA_WITHDRAWAL_EXPIRES_AT : env.RUNTIME_QA_EXPIRES_AT,
-    retire ? '{"action":"withdraw-release-fixtures"}' : '{}');
+  const operation=request.headers.get('x-qa-operation');
+  const inspect=operation==='inspect-release-fixtures';
+  const retire=operation==='withdraw-release-fixtures';
+  const proof=request.headers.get('x-qa-proof')??'';
+  if(retire&&!/^[a-f0-9]{64}$/.test(proof))return Response.json({error:'Unavailable'},{status:404});
+  const cleanup=inspect||retire;
+  const authorized=await authorizeRuntimeQa(request,cleanup?env.QA_WITHDRAWAL_PUBLIC_KEY:env.RUNTIME_QA_PUBLIC_KEY,
+    cleanup?env.QA_WITHDRAWAL_EXPIRES_AT:env.RUNTIME_QA_EXPIRES_AT,
+    cleanup?JSON.stringify({action:operation,...(retire?{proof}:{})}):'{}');
   if (authorized !== 200) return Response.json({ error: 'Unavailable' }, { status: authorized });
   const results: Record<string, unknown> = {};
   const check = async (name: string, action: () => Promise<unknown>) => {
@@ -24,12 +29,31 @@ export const POST = async (request: Request) => {
     }
   };
   const base = firestoreStore(config.projectId, config.firestoreDatabaseId, () => serviceAccountToken(env.FIREBASE_SERVICE_ACCOUNT_JSON!, config.projectId));
-  if (retire) {
+  if(cleanup) {
+    // Use bounded document listing with a name-only mask. The identity
+    // verification path is read-only and can reconcile a lost write response.
+    const publicIds=async()=>{
+      const url=new URL(`https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${config.firestoreDatabaseId}/documents/users_public`);
+      url.searchParams.set('pageSize','100');
+      url.searchParams.append('mask.fieldPaths','uid');
+      const token=await serviceAccountToken(env.FIREBASE_SERVICE_ACCOUNT_JSON!,config.projectId);
+      const ids:string[]=[];
+      for(let page=0;page<5;page++){
+        const response=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
+        if(!response.ok)throw new StoreError(response.status);
+        const data=await response.json() as {documents?:{name:string}[];nextPageToken?:string};
+        for(const doc of data.documents??[])ids.push(doc.name.split('/').at(-1)!);
+        if(!data.nextPageToken)return ids;
+        url.searchParams.set('pageToken',data.nextPageToken);
+      }
+      throw Error('Fixture listing reached its bound');
+    };
     try {
-      const result = await withdrawReleaseFixtures(base);
-      return Response.json(result, { status: result.remaining ? 503 : 200, headers: { 'Cache-Control': 'no-store' } });
-    } catch {
-      return Response.json({ error: 'Cleanup could not be verified.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      const result=retire?await withdrawReleaseFixtures(base,publicIds,proof):await inspectReleaseFixtures(base,publicIds);
+      return Response.json(result,{headers:{'Cache-Control':'no-store'}});
+    } catch(error) {
+      return Response.json({error:'Fixture state could not be verified.',backendStatus:error instanceof StoreError?error.status:undefined},
+        {status:503,headers:{'Cache-Control':'no-store'}});
     }
   }
   const store = isolatedQaStore(base), uid = QA_UIDS[0];

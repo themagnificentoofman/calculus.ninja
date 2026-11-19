@@ -16,24 +16,42 @@ async function digestUid(uid: string) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export async function withdrawReleaseFixtures(store: Store) {
-  const rows = await store.find('users_public', [['displayName', 'EQUAL', 'Calculus Ninja']], 50);
-  if (rows.length === 50) throw Error('Fixture lookup reached its bound');
-  const targets = (await Promise.all(rows.map(async row => ({
-    uid: row.id, known: retired.has(await digestUid(row.id)),
-  })))).filter(row => row.known);
-  if (!targets.length) return {withdrawn: 0, remaining: 0};
+type FixtureCandidate = {uid:string; privateVerified:boolean};
+type FindPublicIds = () => Promise<string[]>;
 
-  const withdrawn = await store.transaction(async tx => {
-    const profiles = await Promise.all(targets.map(({uid}) => tx.get('users/'+uid)));
-    if (profiles.some((profile, index) => !profile || profile.uid !== targets[index].uid || !isQaProfile(profile)))
-      throw Error('Fixture provenance could not be verified');
-    targets.forEach(({uid}, index) => {
-      tx.set('users/'+uid, {...profiles[index], qaFixture:true});
+async function fixtureCandidates(store:Store,findPublicIds:FindPublicIds) {
+  const ids=(await findPublicIds()).sort();
+  const targets:FixtureCandidate[]=[];
+  for(const uid of ids) {
+    if (!retired.has(await digestUid(uid))) continue;
+    const profile=await store.get('users/'+uid);
+    targets.push({uid,privateVerified:!!profile&&profile.uid===uid&&isQaProfile(profile)});
+  }
+  return targets;
+}
+
+export async function inspectReleaseFixtures(store:Store,findPublicIds:FindPublicIds) {
+  const targets=await fixtureCandidates(store,findPublicIds);
+  return {visible:targets.length,verified:targets.filter(p=>p.privateVerified).length,
+    proof:await digestUid(JSON.stringify(targets))};
+}
+
+export async function withdrawReleaseFixtures(store:Store,findPublicIds:FindPublicIds,proof:string) {
+  const targets=await fixtureCandidates(store,findPublicIds);
+  if(targets.some(p=>!p.privateVerified)||await digestUid(JSON.stringify(targets))!==proof)
+    throw Error('Fixture state changed after inspection');
+  if(!targets.length)return {withdrawn:0,remaining:0};
+  const withdrawn=await store.transaction(async tx=>{
+    // Reconcile both collections in the same snapshot as the writes.
+    const pairs=await Promise.all(targets.map(({uid})=>Promise.all([tx.get('users/'+uid),tx.get('users_public/'+uid)])));
+    if(pairs.some(([profile,projection],i)=>!projection||!profile||profile.uid!==targets[i].uid||!isQaProfile(profile)))
+      throw Error('Fixture state changed after inspection');
+    targets.forEach(({uid},i)=>{
+      tx.set('users/'+uid,{...pairs[i][0],qaFixture:true});
       tx.delete('users_public/'+uid);
     });
     return targets.length;
   });
-  const remaining = (await Promise.all(targets.map(({uid}) => store.get('users_public/'+uid)))).filter(Boolean).length;
-  return {withdrawn, remaining};
+  const remaining=(await Promise.all(targets.map(({uid})=>store.get('users_public/'+uid)))).filter(Boolean).length;
+  return {withdrawn,remaining};
 }
