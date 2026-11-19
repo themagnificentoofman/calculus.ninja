@@ -17,7 +17,7 @@ export const POST = async (request: Request) => {
   const cleanup=inspect||retire;
   const authorized=await authorizeRuntimeQa(request,cleanup?env.QA_WITHDRAWAL_PUBLIC_KEY:env.RUNTIME_QA_PUBLIC_KEY,
     cleanup?env.QA_WITHDRAWAL_EXPIRES_AT:env.RUNTIME_QA_EXPIRES_AT,
-    cleanup?JSON.stringify({action:operation,...(retire?{proof}:{})}):'{}');
+    retire?JSON.stringify({proof}):inspect?'{"action":"inspect-release-fixtures"}':'{}');
   if (authorized !== 200) return Response.json({ error: 'Unavailable' }, { status: authorized });
   const results: Record<string, unknown> = {};
   const check = async (name: string, action: () => Promise<unknown>) => {
