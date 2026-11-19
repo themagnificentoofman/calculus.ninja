@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import {afterSignIn} from '@/lib/study/practice-link.mjs';
 import { AccountCreatedError } from '@/lib/account-auth';
 import { Calculator, ArrowRight, Mail, Lock, User, Github } from 'lucide-react';
 
+// Keep native form controls inert until React can handle their events.
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
 export default function AuthPage() {
+  const ready = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,12 +20,13 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const actionsDisabled = !ready || loading;
   const { login, loginWithEmail, signupWithEmail } = useAuth();
   const finishSignIn = () => window.location.assign(afterSignIn(new URLSearchParams(window.location.search).get('next')));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return;
+    if (actionsDisabled) return;
     setError('');
     
     if (password.length < 6) {
@@ -45,7 +52,7 @@ export default function AuthPage() {
   };
 
   const handleGoogleLogin = async () => {
-    if (loading) return;
+    if (actionsDisabled) return;
     setLoading(true);
     setError('');
     try {
@@ -84,6 +91,7 @@ export default function AuthPage() {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-zinc-500 text-zinc-400" />
                 <input
                   type="text"
+                  disabled={!ready}
                   id="name" value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -102,6 +110,7 @@ export default function AuthPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-zinc-500 text-zinc-400" />
               <input
                 type="email"
+                disabled={!ready}
                 id="email" value={email}
                 autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
@@ -118,6 +127,7 @@ export default function AuthPage() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-zinc-500 text-zinc-400" />
               <input
                 type="password"
+                disabled={!ready}
                 id="password" value={password}
                 autoComplete={isLogin ? 'current-password' : 'new-password'}
                 onChange={(e) => setPassword(e.target.value)}
@@ -131,7 +141,7 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={actionsDisabled}
             className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
@@ -151,7 +161,7 @@ export default function AuthPage() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          disabled={loading}
+          disabled={actionsDisabled}
           className="w-full py-3 dark:bg-zinc-800 bg-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 dark:text-white text-zinc-900 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -166,7 +176,7 @@ export default function AuthPage() {
         <p className="mt-8 text-center text-sm dark:text-zinc-400 text-zinc-500">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
-            disabled={loading}
+            disabled={actionsDisabled}
             onClick={() => { setIsLogin(!isLogin); setError(''); }}
             className="text-emerald-500 hover:text-emerald-400 font-bold transition-colors"
           >
