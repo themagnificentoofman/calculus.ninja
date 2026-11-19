@@ -2,6 +2,7 @@
 
 import {useState} from 'react';
 import {MathDisplay} from '@/components/MathDisplay';
+import {StudyVisit} from './StudyVisit';
 import {StudyMark,StudyMarkLegend,StudyRecommendation} from './StudyMark';
 import {studyReadingAnchor} from '@/lib/study/marks.mjs';
 import {syllabusHref} from '@/lib/study/syllabus.mjs';
@@ -69,7 +70,7 @@ export function StudyLessonReader({lesson,pathway,returnLesson,fromReadiness,syl
  const prerequisites = lesson.prerequisites.map(link => ({...link, href: link.href + '?' + source}));
  return <main className="study-lesson mx-auto my-6 max-w-4xl rounded-3xl border border-zinc-800/60 bg-zinc-950/95 px-4 py-10 text-zinc-100 sm:px-6 sm:py-14">
   <nav aria-label="Breadcrumb" className="mb-7 flex flex-wrap gap-2 text-sm text-zinc-400"><a href="/help" className="text-emerald-300 hover:underline">Help &amp; Info</a><span aria-hidden="true">/</span><a href={syllabusHref(syllabus,result)} className="text-emerald-300 hover:underline">Syllabus</a><span aria-hidden="true">/</span><span aria-current="page">{lesson.title}</span></nav>
-  <header><h1 className="text-3xl font-bold leading-tight sm:text-4xl">{lesson.title}</h1><p className="mt-4 text-lg leading-relaxed text-zinc-400"><Inline text={lesson.summary}/></p><p className="mt-4 text-sm text-zinc-400">Variables and constants are real unless a different domain is stated. Angles are measured in radians.</p><div className="mt-3"><StudyMark kind="module" resource={lesson.id+'@'+lesson.revision} title={lesson.title}/></div></header>
+  <StudyVisit id={lesson.id}/><header><h1 className="text-3xl font-bold leading-tight sm:text-4xl">{lesson.title}</h1><p className="mt-4 text-lg leading-relaxed text-zinc-400"><Inline text={lesson.summary}/></p><p className="mt-4 text-sm text-zinc-400">Variables and constants are real unless a different domain is stated. Angles are measured in radians.</p><div className="mt-3"><StudyMark kind="module" resource={lesson.id+'@'+lesson.revision} title={lesson.title}/></div></header>
   {pathway&&<aside aria-label="Current pathway" className="mt-6 rounded-xl border border-zinc-700 p-4"><p className="text-sm text-zinc-400">Step {pathway.index} of {pathway.total} in <a href={pathway.href} className="text-emerald-300 underline">{pathway.title}</a></p><p className="mt-2 text-sm leading-relaxed text-zinc-300">{pathway.purpose}</p></aside>}
   {returnLesson&&<p className="mt-4"><a href={returnLesson.href} className="inline-block py-2 text-emerald-300 underline">Return to {returnLesson.title}</a></p>}
   {pathway&&fromReadiness&&<p className="mt-4"><a href={pathway.href+'#path-readiness'} className="inline-block py-2 text-emerald-300 underline">Return to pathway readiness checks</a></p>}

@@ -6,6 +6,8 @@ declare namespace Cloudflare {
     FIREBASE_SERVICE_ACCOUNT_JSON?: string;
     RATING_REPAIR_PUBLIC_KEY?: string;
     RATING_REPAIR_EXPIRES_AT?: string;
+    QA_WITHDRAWAL_PUBLIC_KEY?: string;
+    QA_WITHDRAWAL_EXPIRES_AT?: string;
     RUNTIME_QA_PUBLIC_KEY?: string;
     RUNTIME_QA_EXPIRES_AT?: string;
     OPENAI_MODEL?: string;
