@@ -23,6 +23,9 @@ const substantive=value=>typeof value==='string'&&value.trim().length>=40&&value
 const identity=value=>typeof value==='string'?value.normalize('NFKC').trim().toLocaleLowerCase('en-US'):'';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url)));
+const dashboardSources=[
+ 'components/study/StudyDashboard.tsx','components/study/StudyVisit.tsx','lib/study/dashboard.mjs',
+];
 export const STUDY_PRESENTATION_FILES = [
  'app/study/page.tsx', 'app/study/lessons/[lessonId]/page.tsx', 'app/study/paths/[pathId]/page.tsx', 'app/study/tiers/[tierId]/page.tsx',
  'components/study/StudyDiagram.tsx', 'components/study/StudyLessonReader.tsx', 'components/study/StudyLibrary.tsx',
@@ -34,30 +37,26 @@ export const STUDY_PRESENTATION_FILES = [
  'content/study/editorial.json', 'content/study/reference-titles.json', 'lib/server/study-editorial-bindings.json',
  'lib/study/practice-drills.mjs', 'lib/study/exercise-techniques.json',
  'lib/server/study-practice-availability.mjs', 'lib/server/study-practice-activation.json','lib/server/round-creation-policy.json',
- 'app/play/test/page.tsx', 'app/globals.css', 'package.json', 'package-lock.json', 'tsconfig.json',
+ 'app/play/test/page.tsx', 'app/globals.css', 'package.json', 'package-lock.json', 'tsconfig.json', ...dashboardSources,
 ];
 export const studyPresentationSources=()=>Object.fromEntries(STUDY_PRESENTATION_FILES.map(path=>[path,sha(readFileSync(resolve(root,path)))]));
 export const currentStudyPresentationHash=()=>sha(canonical(studyPresentationSources()));
 
-const dashboardSources=[
- 'components/study/StudyDashboard.tsx','components/study/StudyVisit.tsx','lib/study/dashboard.mjs',
-];
-
 function studyDashboardPresentation(amendment, sources=studyPresentationSources()){
  assert(amendment?.version==='study-dashboard-presentation-1','Invalid dashboard presentation review');
  const scope=['components/study/StudyLibrary.tsx','components/study/StudyLessonReader.tsx','components/study/StudyMark.tsx','lib/study/marks.mjs'];
- const baseline={...sources};
+ const baseline=Object.fromEntries(Object.entries(sources).filter(([path])=>!dashboardSources.includes(path)));
  for(const path of scope){
   const evidence=amendment.changes?.[path];
   assert(evidence&&isHash(evidence.before)&&sources[path]===evidence.after,'Study dashboard source changed: '+path);
   baseline[path]=evidence.before;
  }
  assert(Object.keys(amendment.changes).length===scope.length,'Unexpected Study dashboard change');
- const additions=Object.fromEntries(dashboardSources.map(path=>[path,sha(readFileSync(resolve(root,path)))]));
+ const additions=Object.fromEntries(dashboardSources.map(path=>[path,sources[path]]));
  assert(canonical(additions)===canonical(amendment.additions),'Unreviewed Study dashboard dependency');
  const predecessor=sha(canonical(baseline));
  assert(predecessor===amendment.predecessor&&predecessor===registry.presentationHash,'Non-dashboard Study presentation changed');
- assert(sha(canonical({...sources,...additions}))===amendment.successor,'Unreviewed Study dashboard presentation');
+ assert(sha(canonical(sources))===amendment.successor,'Unreviewed Study dashboard presentation');
  return predecessor;
 }
 export function studyInventoryFile(path){
