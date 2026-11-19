@@ -1,0 +1,22 @@
+{
+  "cn_408fe505c0913c6b5f67@1": {
+    "sourceContentHash": "70c43b95c189ee2d4ea4ff4f15504ed152ec44d8ffd2b6444c9dd74e7b498fc4",
+    "steps": [
+      "\\textnormal{A positive series with terms one over n to the power p converges exactly when p is greater than one.}",
+      "\\int_1^\\infty x^{-p}\\,\\mathrm{d}x=\\begin{cases}1/(p-1),&p>1,\\\\+\\infty,&0<p\\le1.\\end{cases}",
+      "p_A=\\frac{9}{10},\\quad p_B=\\frac{10}{9}",
+      "\\textnormal{The first series diverges and the second converges.}",
+      "\\left(\\textnormal{diverges},\\ \\textnormal{converges}\\right)"
+    ]
+  },
+  "cn_e1d676a9408b97eb8635@1": {
+    "sourceContentHash": "038cdb922855adc4eb3fec30cba1c6e1bf972f7353d8cc2f13ff9bc50ca384b2",
+    "steps": [
+      "\\textnormal{A positive series with terms one over n to the power p converges exactly when p is greater than one.}",
+      "\\int_1^\\infty x^{-p}\\,\\mathrm{d}x=\\begin{cases}1/(p-1),&p>1,\\\\+\\infty,&0<p\\le1.\\end{cases}",
+      "p_A=\\frac{5}{4},\\quad p_B=\\frac{4}{5}",
+      "\\textnormal{The first series converges and the second diverges.}",
+      "\\left(\\textnormal{converges},\\ \\textnormal{diverges}\\right)"
+    ]
+  }
+}

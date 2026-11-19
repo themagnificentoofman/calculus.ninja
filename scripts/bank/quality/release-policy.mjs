@@ -2,7 +2,14 @@
 import {canonical} from '../admin.mjs';
 import {LEGACY_FAMILIES} from '../../../lib/bank/legacy-origin.mjs';
 import legacyEligibility from '../../../lib/server/legacy-eligibility.json' with {type:'json'};
+import {readFileSync} from 'node:fs';
+import retainedOrigins from './fr-menu-archive.json' with {type:'json'};
+import menuLineage from './fr-menu-lineage.json' with {type:'json'};
+import frRegistry from '../../../lib/server/free-response-admissions.json' with {type:'json'};
+import {menuArchiveForRegistry,validateMenuLineage} from './fr-menu-lineage.mjs';
 export const MAX_RELEASE_SOURCES=64;
+const registryBytes = readFileSync(new URL('../../../lib/server/free-response-admissions.json',import.meta.url));
+const currentOriginArchive = menuArchiveForRegistry(retainedOrigins, registryBytes);
 
 export function flattenSources(db,parent){
  const seen=new Set(),visiting=new Set();
@@ -25,7 +32,7 @@ function immutableInsert(db,table,row,keys){
  db.prepare(`INSERT INTO ${table} (${Object.keys(row).join(',')}) VALUES (${Object.keys(row).map(()=>'?').join(',')})`).run(...Object.values(row));
 }
 
-function applyPolicy(db,manifest,newRecords){
+function applyPolicy(db,manifest,newRecords,converted){
  const release=manifest.releaseId,sources=flattenSources(db,manifest.parentRelease);
  if(sources.includes(release))throw Error('A release cannot inherit itself');
  for(const source of sources)immutableInsert(db,'cbank_release_sources',{release_id:release,source_release_id:source},['release_id','source_release_id']);
@@ -51,7 +58,8 @@ function applyPolicy(db,manifest,newRecords){
   immutableInsert(db,'cbank_withdrawn_families',{source_release_id:item.sourceReleaseId,family_id:item.familyId,introduced_by:release,reason:item.reason},['source_release_id','family_id','introduced_by']);
  }
  for(const item of manifest.lineage||[]){
-  if(!db.prepare('SELECT 1 FROM cbank_problems WHERE problem_id=?').get(item.problemId)||!db.prepare('SELECT 1 FROM cbank_problems WHERE problem_id=?').get(item.lineageId))throw Error('Lineage needs existing mathematical identities');
+  const knownTarget = converted.has(item.problemId) || db.prepare('SELECT 1 FROM cbank_problems WHERE problem_id=?').get(item.lineageId);
+  if(!knownTarget || !db.prepare('SELECT 1 FROM cbank_problems WHERE problem_id=?').get(item.problemId))throw Error('Lineage needs existing mathematical identities');
   const canonicalId=db.prepare('SELECT lineage_id FROM cbank_problem_lineage WHERE problem_id=?').get(item.lineageId)?.lineage_id||item.lineageId;
   if(canonicalId!==item.lineageId)throw Error('Lineage mappings must be flattened');
   immutableInsert(db,'cbank_problem_lineage',{problem_id:item.problemId,lineage_id:item.lineageId},['problem_id']);
@@ -69,6 +77,14 @@ function applyPolicy(db,manifest,newRecords){
 export function applyReleasePolicy(db,manifest,newRecords){
  for(const [field,limit] of [['exclusions',20000],['withdrawals',1024],['lineage',20000],['familyLineage',1024]]){
   if(manifest[field]!==undefined&&(!Array.isArray(manifest[field])||manifest[field].length>limit))throw Error('Release policy bound exceeded: '+field);
+ }
+ const converted = new Set();
+ const declaredLineages = new Map((manifest.lineage || []).map(item => [item.problemId,item.lineageId]));
+ for (const problem of newRecords) {
+  if (problem.templateVersion !== 'reviewed-fr-menus-v1') continue;
+  const link = menuLineage[problem.problemId + '@' + problem.problemRevision];
+  validateMenuLineage(problem, declaredLineages.get(problem.problemId), link, frRegistry, currentOriginArchive);
+  converted.add(problem.problemId);
  }
  const plannedFamilies=new Map((manifest.familyLineage||[]).map(r=>[r.familyId,r.constructionId]));
  const originFor=family=>plannedFamilies.get(family)||db.prepare('SELECT construction_id FROM cbank_family_lineage WHERE family_id=?').get(family)?.construction_id;
@@ -92,6 +108,6 @@ export function applyReleasePolicy(db,manifest,newRecords){
   }
  }
  db.exec('SAVEPOINT quality_policy');
- try{const result=applyPolicy(db,manifest,newRecords);db.exec('RELEASE quality_policy');return result;}
+ try{const result=applyPolicy(db,manifest,newRecords,converted);db.exec('RELEASE quality_policy');return result;}
  catch(error){db.exec('ROLLBACK TO quality_policy; RELEASE quality_policy');throw error;}
 }

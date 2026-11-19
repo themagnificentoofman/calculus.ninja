@@ -57,6 +57,34 @@
       "when": 1793766688305,
       "tag": "0007_quality_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795063396789,
+      "tag": "0008_free_response_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1795063398117,
+      "tag": "0009_free_response_selection_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795063399132,
+      "tag": "0010_round_authorizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795063399595,
+      "tag": "0011_competitive_catalog_window",
+      "breakpoints": true
     }
   ]
 }

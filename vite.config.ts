@@ -44,6 +44,9 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // The release checks measure the saved bundle. Avoid recompressing every
+    // server chunk just to print estimated transfer sizes during the build.
+    build: { reportCompressedSize: false },
     server: {
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }

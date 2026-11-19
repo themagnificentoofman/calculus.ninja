@@ -49,3 +49,10 @@ For each addition:
 - Include notation version, review version, source and review-code digests, exact inventory/family counts, failures and verification limitations in the release evidence. Do not publish with missing coverage or a failing check.
 
 Canonical bank records, content hashes, IDs, answers and saved round snapshots remain immutable. New rounds store the reviewed presentation. Reviews of older finite questions use a separate exact-source-bound explanation overlay; recorded playback keeps the saved explanation, while analysis labels later clarifications. Older snapshots without enough source evidence are never reconstructed by guessing. A correctness change requires a new revision and explicit historical treatment; this presentation update does not regrade previous results.
+
+
+## Answer-entry and guide maintenance
+
+The Milestone 4 answer-entry extension is documented in [ANSWER-ENTRY.md](../milestone4/ANSWER-ENTRY.md). Keep `/help#formatting`, task instructions, actual editor serialization, parser interpretation and grading fixtures synchronized. Distinguish valid mathematical notation, safe rendering and verified grading support. Use explicit grouped arguments/exponents, `ln` for natural logarithms and inverse-function names; never turn an unsupported form into a false wrong verdict. The underlying published content and recorded verdicts remain immutable.
+
+A new supported route needs an independent source-bound review plus reference, equivalent, wrong, domain and resource-limit fixtures. Guide examples are regression obligations under their stated contracts; they are not admission evidence for a practice pool. Verify the rendered Help page and actual editor on desktop/mobile before claiming an interface check.

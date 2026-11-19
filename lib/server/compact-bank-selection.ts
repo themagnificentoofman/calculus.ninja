@@ -1,3 +1,4 @@
+import {indexedPracticeTags} from '../bank/practice-technique-tags.mjs';
 import {legacyPolicy,legacyEligibilitySql} from './legacy-selection.mjs';
 import {selectionFeatures,assertSelectionVocabularySource,historicalSelectionFeatures} from './selection-vocabulary.mjs';
 import {contentAttribution} from '../bank/content-attribution.mjs';
@@ -6,6 +7,7 @@ import type { BankProblem, RoundSnapshot, SelectionDiagnostics } from '../bank/c
 import type { GameQuestion } from '../game-progress.ts';
 import { decodeCompact } from '../bank/compact-codec.mjs';
 import { exposureWeight } from '../bank/exposure.ts';
+import {reservedIdentities} from '../bank/issuance-reservations.mjs';
 import legacyFeatures from '../bank/legacy-features.json' with { type: 'json' };
 import { BankUnavailableError, type RecentProblems } from './bank-selection.ts';
 type Pool = { pool_id: number; release_id: string; active_release: string; family_id: string; construction_id: string; item_count: number };
@@ -51,7 +53,7 @@ function features(row:Candidate):Candidate {
  technique:row.technique||fallback?.technique||row.family_id,combination:row.combination||fallback?.combination||row.family_id,weight:row.weight??fallback?.weight??.15});
 }
 function historyWeights(recent:RecentProblems,now:number) {
- const ids=new Set<string>(),weights=new Map<string,number>();
+ const hardIds=reservedIdentities(recent,now) as Set<string>,ids=new Set<string>(hardIds),weights=new Map<string,number>();
  const add=(key:string,value:number)=>weights.set(key,(weights.get(key)||0)+value);
  if(recent.version===2){
   for(const saved of recent.exposures||[]){const e=historicalSelectionFeatures(saved),w=exposureWeight(e,now);if(!w)continue;
@@ -63,7 +65,7 @@ function historyWeights(recent:RecentProblems,now:number) {
   for(const id of recent.problems||[])ids.add(id);
   for(const family of recent.families||[])add('f:'+family,.25);
  }
- return {ids,weights};
+ return {ids,weights,hardIds};
 }
 function choose(candidates:Candidate[],count:number,cap:number,history:ReturnType<typeof historyWeights>,allowRecent:boolean,rng:()=>number,drill:boolean,reserveRounds=1) {
  const selected:Candidate[]=[],used=new Set<string>(),counts=new Map<string,number>();
@@ -112,21 +114,25 @@ function order(selected:Candidate[],rng:()=>number) {
 /** Bounded catalog; 320 random slot probes, then at most count metadata rows per
  * pool using indexed retrieval if needed. No extra payload decodes. Catalog
  * overflow is explicit, never silent truncation or false exhaustion. */
-export async function selectBankQuestions(db:D1Database,input:{category:string;difficulty:string;count:number;tag?:string;includeLegacy?:boolean},recent:RecentProblems={},rng=random,now=Date.now(),originPolicy=legacyPolicy) {
+export async function selectBankQuestions(db:Pick<D1Database,'prepare'|'batch'>,input:{category:string;difficulty:string;count:number;tag?:string;includeLegacy?:boolean},recent:RecentProblems={},rng=random,now=Date.now(),originPolicy=legacyPolicy) {
  if(!Number.isInteger(input.count)||input.count<1||input.count>20)throw new BankUnavailableError();
+ const history=historyWeights(recent,now);
  const originScope=originPolicy.selection(input.includeLegacy);
  const eligibleOriginSql=legacyEligibilitySql(eligibleSql);
  const pools=(await db.prepare(POOL_SQL).bind(input.difficulty,input.tag||'*',input.category,input.category,originScope.excludedFamilies).all<Pool>()).results;
  if(!pools.length)throw new BankUnavailableError();
  if(pools.length>MAX_CATALOG_POOLS||pools.reduce((n,p)=>n+p.item_count,0)>MAX_CATALOG_ITEMS)throw new BankUnavailableError('This problem catalog exceeds the supported selection bound. Please report this issue.');
- const familyCount=new Set(pools.map(p=>p.construction_id)).size,history=historyWeights(recent,now),candidates=new Map<string,Candidate>();
+ const familyCount=new Set(pools.map(p=>p.construction_id)).size,candidates=new Map<string,Candidate>();
  const slots=new Map(pools.map(p=>{let step=Math.max(1,Math.floor(rng()*p.item_count));while(gcd(step,p.item_count)!==1)step=step%p.item_count+1;return [p.pool_id,{start:Math.floor(rng()*p.item_count),step,used:0}];}));
  let probes=0,statements=1,fallbackRows=0,chosen:Candidate[]|null=null,relaxation:RoundSnapshot['relaxation']='none';
  if(history.ids.size){
   const aliases=(await db.prepare(`SELECT problem_id,lineage_id FROM cbank_problem_lineage WHERE problem_id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify([...history.ids])).all<{problem_id:string;lineage_id:string}>()).results;statements++;
-  for(const alias of aliases)history.ids.add(alias.lineage_id);
+  const heldBeforeAliases=new Set(history.hardIds);
+  for(const alias of aliases){history.ids.add(alias.lineage_id);if(heldBeforeAliases.has(alias.problem_id))history.hardIds.add(alias.lineage_id);}
  }
- const addCandidate=(row:Candidate)=>{const old=candidates.get(row.lineage_id);if(!old||row.revision>old.revision||row.revision===old.revision&&row.problem_ref<old.problem_ref)candidates.set(row.lineage_id,features(row));};
+ // Holds are hard exclusions before every selection/relaxation stage. Soft
+ // historical recency may relax in a scarce MC pool; live reservations may not.
+ const addCandidate=(row:Candidate)=>{if(history.hardIds.has(row.problem_id)||history.hardIds.has(row.lineage_id))return;const old=candidates.get(row.lineage_id);if(!old||row.revision>old.revision||row.revision===old.revision&&row.problem_ref<old.problem_ref)candidates.set(row.lineage_id,features(row));};
  const reasons:SelectionDiagnostics['reasons']=[];
  // Small broad catalogs can be enumerated inside the existing 320-probe bound.
  // Reserve feasible future capped capacity with 20% inventory headroom rather
@@ -169,12 +175,12 @@ export async function selectBankQuestions(db:D1Database,input:{category:string;d
  // mathematical items per pool, excluding retained history in SQL. This proves
  // capped capacity without decoding a corpus or shortening attempted history.
  const retrieve=async(allowRecent:boolean)=>{
-  const blocked=allowRecent?[]:[...history.ids];
+  const blocked=allowRecent?[...history.hardIds]:[...history.ids];
   for(let start=0;start<pools.length;start+=40){
    const chunk=pools.slice(start,start+40);
    const sql=`WITH context(active_release,legacy_families,legacy_revisions) AS (VALUES (?,?,?)),blocked AS MATERIALIZED (SELECT value FROM json_each(?)) `+
     chunk.map(()=>`SELECT * FROM (SELECT ${candidateColumns} FROM cbank_slots s ${candidateJoins}
-     WHERE s.pool_id=? AND ${eligibleOriginSql} AND COALESCE(l.lineage_id,b.problem_id) NOT IN (SELECT value FROM blocked)
+     WHERE s.pool_id=? AND ${eligibleOriginSql} AND COALESCE(l.lineage_id,b.problem_id) NOT IN (SELECT value FROM blocked) AND b.problem_id NOT IN (SELECT value FROM blocked)
      GROUP BY COALESCE(l.lineage_id,b.problem_id) ORDER BY s.slot LIMIT ${input.count})`).join(' UNION ALL ');
    const result=await db.prepare(sql).bind(pools[0].active_release,originPolicy.familyJson,originScope.revisions,JSON.stringify(blocked),...chunk.map(p=>p.pool_id)).all<Candidate>();
    statements++;fallbackRows+=result.results.length;for(const row of result.results)addCandidate(row);
@@ -211,7 +217,7 @@ export async function selectBankQuestions(db:D1Database,input:{category:string;d
   if(original)assertSelectionVocabularySource(original);
   const legacy=original?originPolicy.check(original,candidate.family_id,input.includeLegacy):false;
   const p=original?presentBankProblem(original) as BankProblem & {solutionQuality?:{version:string}}:null;
-  if(!p||p.familyId!==candidate.source_family||p.difficulty!==input.difficulty||input.category!=='all'&&p.topic!==input.category||input.tag&&input.tag!=='*'&&!p.techniqueTags.includes(input.tag))throw Error('Bank pool/content mismatch');
+  if(!p||p.familyId!==candidate.source_family||p.difficulty!==input.difficulty||input.category!=='all'&&p.topic!==input.category||input.tag&&input.tag!=='*'&&!indexedPracticeTags(p).includes(input.tag))throw Error('Bank pool/content mismatch');
   const choices=shuffled(p.choices,rng),credit=contentAttribution(p);
   return {...(legacy?{legacy:true}:{}),...(credit?{contentAttribution:credit}:{}),problemId:p.problemId,problemRevision:p.problemRevision,contentHash:p.contentHash,bankRelease:pools[0].active_release,
    familyId:p.familyId,lineageId:candidate.lineage_id,constructionFamilyId:candidate.family_id,templateVersion:p.templateVersion,...(p.solutionQuality?{solutionReviewVersion:p.solutionQuality.version}:{}),...(p.pedagogy?{pedagogy:{...p.pedagogy,relatedIdeaGroupId:candidate.idea,structuralSignature:candidate.structure,primaryTechnique:candidate.technique}}:{}),context:{assumptions:p.assumptions,subtopic:p.subtopic,techniqueTags:p.techniqueTags,parameters:p.parameters},

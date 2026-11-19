@@ -34,7 +34,8 @@
     "react-dom": "19.2.6",
     "tailwind-merge": "^3.3.1",
     "drizzle-orm": "0.45.2",
-    "jose": "^6.1.0"
+    "jose": "^6.1.0",
+    "mathlive": "0.111.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.1",

@@ -8,6 +8,8 @@ export function reduceEvent(previous:ReplayState,event:ReplayEvent,playerId:stri
     if(event.type==='countdown_start'){s.startTime=d.startTime;s.deadline=d.deadline??null;}
     if(event.type==='round_start'){s.status='active';s.startTime=d.startTime;s.deadline=d.deadline??null;}
     if(event.type==='answer_accepted'&&event.playerId===playerId){s.accepted={...s.accepted,[d.index]:{selectedOption:d.selectedOption,correct:d.correct,xp:d.xp,serverEventId:event.eventId,at:event.at!}};s.submission='accepted';}
+    if(event.type==='answer_finalized'&&event.playerId===playerId){s.accepted={...s.accepted,[d.index]:{responseFormat:'free-response',source:d.source,interpretation:d.interpretation,outcome:d.outcome,finalization:d.finalization,feedback:d.feedback,...(typeof d.correct==='boolean'?{correct:d.correct}:{}),xp:d.xp,serverEventId:event.eventId,at:event.at!}};s.freeResponse={index:d.index,source:d.source,interpretation:d.interpretation,outcome:d.outcome,feedback:d.feedback};s.submission='accepted';}
+    if(event.type==='answer_ungraded'&&event.playerId===playerId){s.freeResponse={index:d.index,source:d.source,interpretation:d.interpretation,outcome:d.outcome,feedback:d.feedback};s.submission='rejected';}
     if(event.type==='score_progress'){s.scores={...d.scores};s.progress={...d.progress};}
     if(event.type==='deadline_changed')s.deadline=d.deadline;
     if(event.type==='round_end'){s.status=d.status;s.logicalEndAt=d.logicalEndAt;s.result=d.result||null;}
@@ -15,14 +17,14 @@ export function reduceEvent(previous:ReplayState,event:ReplayEvent,playerId:stri
     return s;
   }
   if(event.playerId!==playerId)return s;
-  if(event.type==='question_displayed'){s.questionIndex=d.questionIndex;s.selectedOption=null;s.feedbackVisible=false;s.feedbackIndex=null;s.submission='idle';}
+  if(event.type==='question_displayed'){s.questionIndex=d.questionIndex;s.selectedOption=null;s.feedbackVisible=false;s.feedbackIndex=null;s.submission='idle';s.freeResponse=undefined;}
   if(event.type==='selection_changed'){s.selectedOption=d.selectedOption;}
   if(event.type==='submission_started')s.submission='pending';
   if(event.type==='submission_rejected')s.submission='rejected';
   if(event.type==='feedback_displayed'){
     const a=s.accepted[d.questionIndex];
     // Only a captured display linked to the accepted server event reveals a solution.
-    if(a&&a.serverEventId===event.serverEventId){s.feedbackVisible=true;s.feedbackIndex=d.questionIndex;s.selectedOption=a.selectedOption;s.submission='accepted';}
+    if(a&&a.serverEventId===event.serverEventId){s.feedbackVisible=true;s.feedbackIndex=d.questionIndex;s.selectedOption=a.selectedOption??null;s.submission='accepted';}
     else s.gap=true;
   }
   if(event.type==='next'||event.type==='automatic_advance'){s.feedbackVisible=false;s.feedbackIndex=null;s.selectedOption=null;s.submission='idle';s.questionIndex=null;}
@@ -46,24 +48,24 @@ export function problemEvidence(data:ReplayData,index:number){
   const events=orderEvents(data.events).filter(e=>e.source==='client'&&e.playerId===data.playerId);
   const exposure=events.filter(e=>e.type==='question_displayed'&&e.data.questionIndex===index),submission=events.find(e=>e.type==='submission_started'&&e.data.questionIndex===index),feedback=events.find(e=>e.type==='feedback_displayed'&&e.data.questionIndex===index);
   const next=feedback?events.find(e=>e.at!>=feedback.at!&&['next','automatic_advance'].includes(e.type)&&e.data.questionIndex===index):undefined;
-  const accepted=data.events.find(e=>e.source==='server'&&e.type==='answer_accepted'&&e.playerId===data.playerId&&e.data.index===index);
+  const accepted=data.events.find(e=>e.source==='server'&&['answer_accepted','answer_finalized'].includes(e.type)&&e.playerId===data.playerId&&e.data.index===index);
   // Only closed visible intervals count. Open spans, clock-segment changes, or
   // missing events remain unknown instead of becoming fabricated solve times.
   let visibleMs=0,open:ReplayEvent|undefined,uncertain=false;
   for(const e of events){if(e.type==='question_displayed'&&e.data.questionIndex===index)open=e;else if(open&&['visibility_hidden','page_leave','submission_started','question_displayed','capture_gap'].includes(e.type)){if(e.segmentId!==open.segmentId||e.type==='capture_gap')uncertain=true;else visibleMs+=Math.max(0,e.at!-open.at!);open=undefined;}}
   if(open)uncertain=true;
-  return {exposedAt:exposure[0]?.at??null,submissionAt:submission?.at??null,acceptedAt:accepted?.at??null,feedbackAt:feedback?.at??null,feedbackDwellMs:feedback&&next&&feedback.segmentId===next.segmentId?Math.max(0,next.at!-feedback.at!):null,visibleExposureMs:exposure.length&&!uncertain?visibleMs:null,totalToSubmitMs:exposure[0]&&submission&&exposure[0].segmentId===submission.segmentId?Math.max(0,submission.at!-exposure[0].at!):null,answer:accepted?.data??null};
+  return {ungradedSubmissions:data.events.filter(e=>e.source==='server'&&e.type==='answer_ungraded'&&e.playerId===data.playerId&&e.data.index===index).length,exposedAt:exposure[0]?.at??null,submissionAt:submission?.at??null,acceptedAt:accepted?.at??null,feedbackAt:feedback?.at??null,feedbackDwellMs:feedback&&next&&feedback.segmentId===next.segmentId?Math.max(0,next.at!-feedback.at!):null,visibleExposureMs:exposure.length&&!uncertain?visibleMs:null,totalToSubmitMs:exposure[0]&&submission&&exposure[0].segmentId===submission.segmentId?Math.max(0,submission.at!-exposure[0].at!):null,answer:accepted?.data??null};
 }
 export function roundAnalysis(data:ReplayData){
   const compiled=compileReplay(data);
   const problems=data.content.questions.map((question,index)=>{
     const evidence=problemEvidence(data,index),state=evidence.acceptedAt===null?null:compiled.seek(evidence.acceptedAt);
-    return {index,topic:question.topic||'Unknown topic',...evidence,scoreAfter:state?.scores[data.playerId]??null,progressAfter:state?.progress[data.playerId]??null};
+    return {index,responseFormat:question.responseFormat==='free-response'?'free-response':'multiple-choice',topic:question.topic||'Unknown topic',...evidence,scoreAfter:state?.scores[data.playerId]??null,progressAfter:state?.progress[data.playerId]??null};
   });
   const summarize=(items:typeof problems)=>{
     const attempted=items.filter(p=>typeof p.answer?.correct==='boolean'),correct=attempted.filter(p=>p.answer!.correct).length;
     const timed=attempted.filter(p=>p.totalToSubmitMs!==null),xp=attempted.filter(p=>typeof p.answer?.xp==='number'&&Number.isFinite(p.answer.xp));
-    return {questions:items.length,attempted:attempted.length,correct,accuracy:attempted.length?100*correct/attempted.length:null,timed:timed.length,meanExposureToSubmitMs:timed.length?timed.reduce((sum,p)=>sum+p.totalToSubmitMs!,0)/timed.length:null,recordedXp:xp.length?xp.reduce((sum,p)=>sum+p.answer!.xp,0):null};
+    return {finalized:items.filter(p=>p.answer!==null).length,skipped:items.filter(p=>p.answer?.finalization==='skipped').length,revealed:items.filter(p=>p.answer?.finalization==='revealed').length,ungradedSubmissions:items.reduce((n,p)=>n+p.ungradedSubmissions,0),questions:items.length,attempted:attempted.length,correct,accuracy:attempted.length?100*correct/attempted.length:null,timed:timed.length,meanExposureToSubmitMs:timed.length?timed.reduce((sum,p)=>sum+p.totalToSubmitMs!,0)/timed.length:null,recordedXp:xp.length?xp.reduce((sum,p)=>sum+p.answer!.xp,0):null};
   };
-  return {problems,overall:summarize(problems),topics:[...new Set(problems.map(p=>p.topic))].map(topic=>({topic,...summarize(problems.filter(p=>p.topic===topic))}))};
+  return {problems,overall:summarize(problems),formats:[...new Set(problems.map(p=>p.responseFormat))].map(responseFormat=>({responseFormat,...summarize(problems.filter(p=>p.responseFormat===responseFormat))})),topics:[...new Set(problems.map(p=>p.topic))].map(topic=>({topic,...summarize(problems.filter(p=>p.topic===topic))}))};
 }

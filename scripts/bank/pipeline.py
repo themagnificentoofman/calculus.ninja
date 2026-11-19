@@ -201,6 +201,8 @@ def verify_artifact(path):
         if p.get('schemaVersion')==2:
             if p.get('templateVersion')=='reviewed-quality-constructions-v1':
                 from quality.contract import verify
+            elif p.get('templateVersion')=='reviewed-fr-menus-v1':
+                from quality.fr_menu import verify
             else:
                 from content_pipeline import verify
             verify(p)

@@ -1,7 +1,7 @@
 import {execute,field,and,or,constant,switchOn,timestampToUnixMillis} from 'firebase/firestore/pipelines';
 import type {Firestore} from 'firebase/firestore';
 export const HISTORY_PAGE_SIZE=25;
-export interface HistoryFilters {mode?:string;from?:string;to?:string;topic?:string;difficulty?:string;result?:string;replay?:string}
+export interface HistoryFilters {mode?:string;from?:string;to?:string;topic?:string;difficulty?:string;result?:string;replay?:string;responseFormat?:string}
 export type HistoryRow=Record<string,any>&{id:string};
 export type HistoryCursor=Record<string,{value:unknown;id:string}>;
 export function historyDate(value:any):number|null{
@@ -24,7 +24,8 @@ export async function loadHistoryPage(db:Firestore,uid:string,filters:HistoryFil
  if(filters.topic&&filters.topic!=='all')base=base.where(field('category').ifAbsent('unknown').equal(filters.topic==='mixed'?'all':filters.topic));
  if(filters.difficulty&&filters.difficulty!=='all')base=base.where(field('difficulty').ifAbsent('unknown').equal(filters.difficulty));
  if(filters.result&&filters.result!=='all')base=base.where(field(`receipts.${uid}.outcome`).ifAbsent('unknown').equal(filters.result));
- if(filters.replay&&filters.replay!=='all')base=base.where(filters.replay==='legacy'?field('replayVersion').ifAbsent(0).notEqual(1):field('replayVersion').ifAbsent(0).equal(1));
+ if(filters.responseFormat&&filters.responseFormat!=='all')base=base.where(field('responseFormat').ifAbsent('multiple-choice').equal(filters.responseFormat));
+ if(filters.replay&&filters.replay!=='all'){const recorded=or(field('replayVersion').ifAbsent(0).equal(1),field('replayVersion').ifAbsent(0).equal(2));base=base.where(filters.replay==='legacy'?recorded.not():recorded);}
  const bounded=await Promise.all(cohorts.map(async cohort=>{
   if(cohort.name==='unknown'&&(filters.from||filters.to))return {name:cohort.name,rows:[] as HistoryRow[]};
   let query=base.where(cohort.condition);const c=cursor[cohort.name];

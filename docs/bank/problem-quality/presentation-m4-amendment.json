@@ -1,0 +1,28 @@
+{
+  "priorManifest": "docs/bank/problem-quality/presentation-final-review-amendment.json",
+  "priorSHA256": "d5424bc301779b36ed19996ff9d0c3e2f0a974daedff134fdeae71117fd19c20",
+  "historicalComparison": "docs/bank/problem-quality/presentation-m4-history.json",
+  "evidence": {
+    "docs/bank/problem-quality/presentation-m4-history.json": "b80699ec7373c525d7b8dc7e37b705fd711998517a854c42a93591a91cb0d3ad",
+    "scripts/bank/solution-review/compare-m4.mjs": "9cfc0d21c28057443e2b30a37f99fb7bc117b0703e4554b245234c3dbf5cbacb",
+    "lib/server/solution-reviews/tangent-intercepts.json": "19289ccec8b1a0fc70f345f20a91265838e725fe4bb0c7fea7882ec83ef7cc4f",
+    "lib/server/solution-reviews/p-series-classification.json": "a2473a9ac97c50a78a5b128f7d45750476fb413dbb2a499a2dcf2db9b08104ef"
+  },
+  "overrides": {
+    "app/globals.css": {
+      "priorSha256": "a3db006cf009cdf6ddc3c5574ff26a087aacbd8b4d427031a23c311c1bbb9a4e",
+      "sha256": "4e3f232db6c2d1891f043c870520ecdc8a856be861111dae35bfd527aab3a7e3",
+      "reviewedChange": "The original solution declarations remain intact. Study shares their equation settings, and the answer editor hides its menu toggle."
+    },
+    "components/ProblemStatement.tsx": {
+      "priorSha256": "23592324a2ab3647e51db646e8a41d7046d0b9df56279ebbfcaa89f3da7ac29a",
+      "sha256": "7ac71636fbbd153e8c89915b899802b01ab2e33129d3baffe810cb03a258bd04",
+      "reviewedChange": "Only the explanatory title on the Legacy label changes. The question, math formatter, choices and label presentation remain intact."
+    },
+    "lib/server/solution-presentation.mjs": {
+      "priorSha256": "8a1dbac33d47beb914f405e32b55228bea617cf55ae8ff89e3718a04f2301ae8",
+      "sha256": "cc785f5f7571e3377c3c61d3aea3471dc05192f3ed848d81e78d216b64812c78",
+      "reviewedChange": "Two exactly bound historical corrections and independently registered new menus are supported. All retained source projections were compared with their earlier code. Saved snapshots and keyed choices were checked independently."
+    }
+  }
+}

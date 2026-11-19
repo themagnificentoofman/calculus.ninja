@@ -3,8 +3,10 @@ import { ProblemStatement } from '@/components/ProblemStatement';
 
 import {useReplayCapture,ReplayCaptureStatus,observeReplay,useRoundUrl,capturedView,clearRoundUrl} from '@/components/ReplayCapture';
 import { useState, useEffect, useRef } from 'react';
+import { useLobbyDeparture } from '@/components/LobbyDeparture';
+import { useLobbyPresence } from '@/components/LobbyPresence';
+import { LobbyChoice, LobbySignIn } from '@/components/LobbyChoice';
 import { useAuth } from '@/components/AuthProvider';
-import { motion, AnimatePresence } from 'motion/react';
 import { ProblemReference } from '@/components/ProblemReference';
 import { MathDisplay } from '@/components/MathDisplay';
 import { ContentAttribution } from '@/components/ContentAttribution';
@@ -12,16 +14,14 @@ import { SolutionSteps } from '@/components/SolutionSteps';
 import { LastAnswerReview, type AnsweredQuestion } from '@/components/LastAnswerReview';
 import { Trophy, RefreshCw, Home, Play, CheckCircle2, XCircle, ArrowRight, Globe, Users, Info } from 'lucide-react';
 import Image from 'next/image';
-import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
+import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundStart';
 import { RankIcon, getRankInfo } from '@/components/RankDisplay';
-import { db } from '@/firebase';
+import { auth, db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { selectQuestions } from '@/lib/questions';
 import { playSound } from '@/lib/sounds';
-import { loadWaitingGames } from '@/lib/stat-queries';
 import { hasRating } from '@/lib/progression';
 import { apiRequest, gameProgress } from '@/lib/game-session';
-import { gameStandings, nextUnanswered, type GameSession } from '@/lib/game-progress';
+import { gameStandings, nextUnanswered, type GameSession, type MultipleChoiceSession, requireMultipleChoiceSession } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { Chat } from '@/components/Chat';
 
@@ -46,7 +46,7 @@ interface Question {
   difficulty: string;
 }
 
-type GameData = GameSession;
+type GameData = MultipleChoiceSession;
 
 export default function MultiplayerMode() {
   const [match, setMatch] = useState(0);
@@ -58,6 +58,14 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   const [leaving, setLeaving] = useState(false);
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameData, setGameData] = useState<GameData | null>(null);
+  useLobbyDeparture(user?.uid, gameId, gameData?.status);
+  const presenceError = useLobbyPresence(user?.uid, gameId, gameData?.status);
+  const [creationVisibility, setCreationVisibility] = useState<'private' | 'public' | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('host') === 'public') setCreationVisibility('public');
+    else if (params.has('invite')) setCreationVisibility('private');
+  }, []);
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('Setting up arena...');
@@ -142,8 +150,8 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
     const unsub = gameProgress.watchGame(gameId, user!.uid, async (view) => {
       {
-        const data = view as GameData;
-        if (data.status === 'cancelled') { setGameId(null); setGameData(null); setGenerationError('This lobby was cancelled or expired. Start or join a new game.'); return; }
+        const data = requireMultipleChoiceSession(view);
+        if (data.status === 'cancelled') { setGameId(null); setGameData(null); setCreationVisibility(null); setGenerationError('This lobby was cancelled or expired. Start or join a new game.'); return; }
         setGameData(data);
         if (user && restoredGame.current !== gameId) {
           restoredGame.current = gameId;
@@ -164,7 +172,10 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           });
         }
       }
-    }, () => setSaveError('Game sync failed. Please reconnect.'));
+    }, () => setSaveError('Game sync failed. Please reconnect.'), () => {
+      setGameId(null); setGameData(null); setCreationVisibility(null); clearRoundUrl();
+      setGenerationError('You have left this lobby or it is no longer available. Start or join a new game.');
+    });
 
     return () => unsub();
   }, [gameId, user, leaving]);
@@ -188,37 +199,38 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     return () => clearInterval(interval);
   }, [gameId, user, gameData?.status, gameData?.deadline]);
 
-  const createGame = async () => {
-    setGenerationError('');
-    if (!user) return;
-    setLoadingMessage('Selecting questions...');
-    setLoading(true);
-    try {
-      const questionsCount = winCondition === 'first_to_n' ? Math.min(targetScore * 3, 20) : 20;
-      const generatedQuestions = await selectQuestions(category, difficulty, questionsCount, 'multiplayer');
-      
-      if (generatedQuestions) {
-        try {
-          const docRef = { id: await gameProgress.createGame(user.uid, 'multiplayer', generatedQuestions, { category, difficulty, settings: { winCondition, targetScore, timeLimit, penalties } }) };
-          setGameId(docRef.id);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'games');
-        }
-      }
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Could not select problems. Please try again.');
-    } finally {
-      setLoading(false);
+  const [closedHostId, setClosedHostId] = useState<string | null>(null);
+  async function loadHostRoom(id:string) {
+    if (!user) return false;
+    const uid = user.uid;
+    const game = requireMultipleChoiceSession(await gameProgress.getGame(id, uid));
+    if (auth.currentUser?.uid !== uid) return false;
+    if (game.mode !== 'multiplayer' || game.players[0] !== uid) throw Error('This lobby belongs to another host.');
+    if (game.status === 'cancelled') {
+      setClosedHostId(id);
+      setGenerationError('This lobby closed. You can start another game.');
+      return true;
     }
+    setGameData(game);
+    setGameId(id);
+
+    return true;
+  }
+  const hostStart = usePendingRoundStart(user?.uid, 'multiplayer', loadHostRoom, gameId && gameData?.players[0] === user?.uid ? gameId : closedHostId);
+  const createGame = () => {
+    if (!user) return;
+    setClosedHostId(null);
+    setGenerationError('');
+    return hostStart.start({mode:'multiplayer',category,difficulty,count:winCondition === 'first_to_n' ? Math.min(targetScore * 3,20) : 20,options:{visibility:creationVisibility ?? 'private',settings:{winCondition,targetScore,timeLimit,penalties}}});
   };
 
-  const joinGame = async (idToJoin: string) => {
+  const joinGame = async (idToJoin: string, source:'manual'|'link'='manual') => {
     if (!user) return;
     setLoading(true); setGenerationError('');
     try {
       const id = idToJoin.trim();
       if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid game ID.');
-      await gameProgress.joinGame(id, user.uid, 'multiplayer');
+      await gameProgress.joinGame(id, user.uid, 'multiplayer',source);
       setGameId(id);
     } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not join this game.'); }
     finally { setLoading(false); }
@@ -227,38 +239,8 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   const joiningFromLink = useRef(false);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('join');
-    if (user && id && !joiningFromLink.current) { joiningFromLink.current = true; void joinGame(id); }
+    if (user && id && !joiningFromLink.current) { joiningFromLink.current = true; void joinGame(id,'link'); }
   }, [user]);
-
-  const joinRandomGame = async () => {
-    if (!user) return;
-    setLoadingMessage('Finding an available arena...');
-    setLoading(true);
-    try {
-      const matches = await loadWaitingGames(db, user.uid, 'multiplayer');
-
-      let joined = false;
-      for (const data of matches) {
-        if (data.players.length < 10 && !data.players.includes(user.uid)) {
-          try {
-            await gameProgress.joinGame(data.id, user.uid, 'multiplayer');
-          } catch { continue; }
-          setGameId(data.id);
-          joined = true;
-          break;
-        }
-      }
-      
-      if (!joined) {
-        await createGame();
-      }
-    } catch (error) {
-      console.error(error);
-      await createGame();
-    } finally {
-      if(!gameId) setLoading(false);
-    }
-  };
 
   const startGame = async () => {
     if (!gameId || !user) return;
@@ -298,28 +280,22 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   };
 
   const leaveLobby = async () => {
-    if (!gameId || leaving) return;
+    if (!user || !gameId || leaving) return;
     setLeaving(true); setSaveError('');
-    try { await gameProgress.leaveGame(gameId); setGameId(null); setGameData(null); }
+    try { await gameProgress.leaveGame(gameId,user.uid); setGameId(null); setGameData(null); setCreationVisibility(null); }
     catch (error) { setSaveError(error instanceof Error ? error.message : 'Could not leave the lobby. Please retry.'); }
     finally { setLeaving(false); }
   };
 
-  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id).then(g=>{if(g.mode!=='multiplayer')throw Error('This round belongs to another mode.');setGameId(id);}).catch(e=>setGenerationError(e.message));});
+  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id,user?.uid).then(g=>{if(g.mode!=='multiplayer')throw Error('This round belongs to another mode.');setGameId(id);}).catch(e=>setGenerationError(e.message));});
   const capturedFeedbackIndex=showExplanation?currentIndex:gameData?.status==='finished'&&lastAnswer?gameData.questions?.findIndex(q=>!!q.problemId&&q.problemId===lastAnswer.question.problemId)??-1:-1;
   const captureStatus=useReplayCapture(user?.uid,gameId,gameData?.replayVersion,{index:!loading&&gameData?.status==='active'&&true&&currentIndex<(gameData.questions?.length||0)?currentIndex:null,selectedOption,feedbackIndex:capturedFeedbackIndex>=0?capturedFeedbackIndex:null,serverEventId:gameData?.answers?.[user?.uid||'']?.[capturedFeedbackIndex]?.serverEventId,finished:gameData?.status==='finished',settled:!saving});
 
   if (authLoading) return <main className="p-8 text-center text-zinc-400" role="status">Loading your account…</main>;
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-zinc-400">Please sign in to play.</p>
-      </div>
-    );
-  }
+  if (!user) return <LobbySignIn mode="multiplayer" />;
 
-  if (loading) {
+  if (loading || hostStart.loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <RefreshCw className="w-12 h-12 text-purple-500 animate-spin mb-4" />
@@ -328,23 +304,26 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     );
   }
 
+  if (!gameId && hostStart.pending) return <main className="mx-auto max-w-xl px-4 py-12"><PendingRoundStart state={hostStart}/>{hostStart.error && <p role="alert">{hostStart.error}</p>}</main>;
+  if (!gameId && !creationVisibility) return <LobbyChoice mode="multiplayer" error={generationError || hostStart.error} onPrivate={() => setCreationVisibility('private')} onJoin={joinGame} />;
+
   if (!gameId) {
     return (
       <div className="min-h-screen max-w-3xl mx-auto px-4 py-12 flex flex-col justify-center">
-        <a href="/" className="text-zinc-400 hover:text-white flex items-center gap-2 mb-12 w-fit transition-colors">
-          <Home className="w-5 h-5" /> Back to Dashboard
-        </a>
+        <button onClick={() => { if (creationVisibility === 'public') location.assign('/play/multiplayer/lobbies'); else setCreationVisibility(null); }} className="mb-8 inline-flex min-h-11 w-fit items-center gap-2 text-zinc-400 hover:text-white">
+          <Home className="h-4 w-4" /> Back to {creationVisibility === 'public' ? 'public catalog' : 'Multiplayer lobbies'}
+        </button>
         
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium mb-4">
             <Trophy className="w-4 h-4 shrink-0" />
             <span>Multiplayer</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Multiplayer</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">{creationVisibility === 'public' ? 'Public Lobby' : 'Private Lobby'}</h1>
           <p className="text-zinc-400 mt-4 text-lg">Join a global arena and compete against multiple players.</p>
         </div>
         
-        {generationError && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError}</p>}
+        {(generationError || hostStart.error) && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError || hostStart.error}</p>}
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 sm:p-10 space-y-8 backdrop-blur-sm shadow-xl">
           <div className="space-y-6">
             <div>
@@ -539,55 +518,9 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-800/50 flex flex-col sm:flex-row gap-4">
-            <button 
-              onClick={createGame}
-              className="flex-1 py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2 group"
-            >
-              <Globe className="w-5 h-5 fill-current" /> 
-              <span>Create Arena</span>
-            </button>
-            <button 
-              onClick={joinRandomGame}
-              className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
-            >
-              <Users className="w-5 h-5" /> 
-              <span>Find Match</span>
-            </button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-800/50"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-zinc-900/50 text-zinc-500 font-bold uppercase tracking-wider">OR JOIN EXISTING</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-zinc-300 mb-3 uppercase tracking-wider">Game ID</label>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                id="join-id"
-                placeholder="Enter Game ID..."
-                className="min-w-0 flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-mono transition-all"
-              />
-              <button 
-                onClick={() => {
-                  const input = document.getElementById('join-id') as HTMLInputElement;
-                  if (input.value) joinGame(input.value);
-                }}
-                className="px-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl font-bold transition-all hover:scale-[1.02]"
-              >
-                Join
-              </button>
-            </div>
-            {joinError && (
-              <p className="text-red-400 text-sm mt-2">{joinError}</p>
-            )}
-          </div>
+          <button onClick={createGame} className="min-h-12 w-full rounded-2xl bg-purple-600 px-6 py-4 text-lg font-bold text-white hover:bg-purple-500">
+            Create {creationVisibility} lobby
+          </button>
         </div>
       </div>
     );
@@ -598,13 +531,13 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           <Trophy className="w-20 h-20 text-purple-500 mx-auto mb-6 animate-pulse" />
           <h2 className="text-3xl font-bold mb-2">Lobby</h2>
+          <p className="mt-2 mb-4 text-sm text-zinc-500">{gameData.visibility === 'public' ? 'Public Lobby · Listed in the live catalog' : 'Private Lobby · Join by code or invitation'}</p>
+          {presenceError && <p role="status" className="mb-4 text-sm text-amber-300">{presenceError}</p>}
           <p className="text-zinc-400 mb-8">Share this Game ID with your friends:</p>
           
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-8 font-mono text-base sm:text-xl break-all text-purple-400 select-all">
@@ -691,7 +624,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           <button disabled={leaving} onClick={leaveLobby} className="w-full min-h-11 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-bold transition-colors disabled:opacity-50">
             {leaving ? 'Leaving…' : 'Leave Lobby'}
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -704,9 +637,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           {isWinner ? (
@@ -747,17 +678,14 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                     )}
                   </div>
                 </div>
-                <motion.span 
+                <span 
                   key={gameData.scores[p] || 0}
-                  initial={{ scale: 1.5, opacity: 0, y: -10 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                   className="shrink-0 ml-3 whitespace-nowrap font-mono font-bold inline-block"
                   style={p === user.uid ? { color: playerColor } : { color: playerProfiles[p]?.color || '#ffffff' }}
                 >
                   {gameData.scores[p] || 0}
                   {gameData.settings?.winCondition === 'first_to_n' && <span className="text-zinc-500 text-xs ml-1">/ {gameData.settings.targetScore}</span>}
-                </motion.span>
+                </span>
               </div>
             ))}
           </div>
@@ -777,7 +705,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
               Back to Dashboard
             </a>
           </div>
-        </motion.div>
+        </div>
         <Chat gameId={gameId!} messages={gameData.messages || []} />
       </div>
     );
@@ -804,19 +732,16 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     return (
       <div className="min-h-screen max-w-6xl mx-auto px-4 py-12 flex gap-8 flex-col lg:flex-row relative overflow-x-clip">
         <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError} />
-        <AnimatePresence>
+        
           {xpEarned !== null && (
-             <motion.div 
-               initial={{ opacity: 0, y: 20, scale: 0.8 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: -20 }}
+             <div
                className="pointer-events-none fixed top-24 right-10 md:right-20 bg-amber-500/20 border border-amber-500/50 text-amber-500 font-bold px-4 py-2 rounded-xl flex items-center gap-2 z-50 shadow-lg"
              >
                <span className="text-xl">+</span>
                <span className="text-2xl">{xpEarned} XP</span>
-             </motion.div>
+             </div>
           )}
-        </AnimatePresence>
+        
         
         {/* Main Game Area */}
         <div className="min-w-0 flex-1">
@@ -837,13 +762,9 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           </div>
 
           {q && (
-            <AnimatePresence mode="wait">
-              <motion.div 
+            
+              <div 
                 key={currentIndex}
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                transition={{ duration: 0.3 }}
                 className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 sm:p-8 mb-8"
               >
                 <div className="text-xl sm:text-2xl mb-6 sm:mb-12 w-full overflow-x-auto py-4">
@@ -889,9 +810,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                 </div>
 
                 {!showExplanation && selectedOption !== null && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <div
                     className="mt-8 flex justify-center"
                   >
                     <button
@@ -900,16 +819,14 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                     >
                       Confirm Answer <CheckCircle2 className="w-5 h-5" />
                     </button>
-                  </motion.div>
+                  </div>
                 )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            
           )}
 
           {showExplanation && q && (
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
+            <div
               className={`p-4 sm:p-6 rounded-2xl border mb-8 ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -941,7 +858,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
 
@@ -979,17 +896,14 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                       )}
                     </div>
                   </div>
-                  <motion.span 
+                  <span 
                     key={gameData.scores[p] || 0}
-                    initial={{ scale: 1.5, opacity: 0, y: -10 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                     className="shrink-0 ml-3 whitespace-nowrap font-mono font-bold inline-block"
                     style={p === user.uid ? { color: playerColor } : { color: playerProfiles[p]?.color || '#c084fc' }}
                   >
                     {gameData.scores[p] || 0}
                     {gameData.settings?.winCondition === 'first_to_n' && <span className="text-zinc-500 text-xs ml-1">/ {gameData.settings.targetScore}</span>}
-                  </motion.span>
+                  </span>
                 </div>
               ))}
             </div>

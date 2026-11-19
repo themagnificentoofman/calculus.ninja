@@ -1,9 +1,9 @@
-import { CONTACT_COOLDOWN_SECONDS, CONTACT_DAILY_LIMIT, CONTACT_TOPICS, type ContactTopic } from '../contact.ts';
+import { CONTACT_COOLDOWN_SECONDS, CONTACT_DAILY_LIMIT, CONTACT_TOPICS, reportFieldError, type ContactTopic, type ReportFields } from '../contact.ts';
 import { readBoundedJson } from './questions-policy.mjs';
 
 export const CONTACT_RECIPIENT = 'zacharyzheng2009@gmail.com';
 type Identity = { sub?: unknown; email?: unknown };
-type ContactMessage = { uid: string; email: string; topic: ContactTopic; message: string; requestId: string };
+type ContactMessage = ReportFields & { uid: string; email: string; topic: ContactTopic; message: string; requestId: string };
 const json = (body: unknown, status = 200, retry = 0) => Response.json(body, { status, headers: {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(retry > 0 ? { 'Retry-After': String(retry) } : {}),
 } });
@@ -45,13 +45,14 @@ export async function reserveContactQuota(db: D1Database, uid: string, now = Dat
 }
 
 export function resendContactSender(apiKey: string, from: string, transport: typeof fetch = fetch) {
-  return async ({ uid, email, topic, message, requestId }: ContactMessage) => {
+  return async ({ uid, email, topic, message, requestId, problemId, problemRevision, studyLesson, studySection }: ContactMessage) => {
+    const context = [problemId && `Problem ID: ${problemId}`, problemRevision && `Saved revision: ${problemRevision}`, studyLesson && `Lesson: ${studyLesson}`, studySection && `Section: ${studySection}`].filter(Boolean);
     const result = await transport('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `contact/${uid}/${requestId}` },
       body: JSON.stringify({ from, to: [CONTACT_RECIPIENT], reply_to: email,
         subject: `[Calculus Ninja] ${CONTACT_TOPICS[topic]}`,
-        text: `Account email: ${email}\nAccount ID: ${uid}\nTopic: ${CONTACT_TOPICS[topic]}\n\n${message}` }),
+        text: `Account email: ${email}\nAccount ID: ${uid}\nTopic: ${CONTACT_TOPICS[topic]}${context.length ? "\n" + context.join("\n") : ""}\n\n${message}` }),
       signal: AbortSignal.timeout(12000),
     });
     if (!result.ok || typeof (await result.json() as { id?: unknown }).id !== 'string') throw new Error('Email delivery unavailable');
@@ -82,15 +83,27 @@ export function createContactApi(deps: {
       if (request.method === 'GET') return json({ retryAfter: await deps.status(uid, now) });
       let body;
       try { body = await readBoundedJson(request, 20000); } catch { return json({ error: 'Send a valid message of at most 4,000 characters.' }, 400); }
-      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['topic', 'message', 'requestId'].includes(key)) ||
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['topic', 'message', 'requestId', 'problemId', 'problemRevision', 'studyLesson', 'studySection'].includes(key)) ||
         typeof body.topic !== 'string' || !Object.hasOwn(CONTACT_TOPICS, body.topic) ||
         typeof body.message !== 'string' || body.message.trim().length < 10 || body.message.length > 4000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(body.message) ||
         typeof body.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.requestId)) {
         return json({ error: 'Choose a topic and write a message between 10 and 4,000 characters.' }, 400);
       }
+      const topic = body.topic as ContactTopic;
+      const fieldError = reportFieldError(topic, body);
+      if (fieldError) return json({ error: fieldError }, 400);
+      const context: ReportFields = {};
+      if (topic === 'problem' && body.problemId) {
+        context.problemId = body.problemId;
+        if (body.problemRevision !== undefined) context.problemRevision = body.problemRevision;
+      }
+      if (topic === 'study') {
+        context.studyLesson = body.studyLesson.trim();
+        context.studySection = body.studySection.trim();
+      }
       const retry = await deps.reserve(uid, now);
       if (retry) return json({ error: retry > 60 ? 'The daily contact limit has been reached. Please try again later.' : 'Please wait before sending another message.', retryAfter: retry }, 429, retry);
-      try { await deps.send({ uid, email, topic: body.topic as ContactTopic, message: body.message.trim(), requestId: body.requestId }); }
+      try { await deps.send({ uid, email, topic, ...context, message: body.message.trim(), requestId: body.requestId }); }
       catch {
         return json({ error: 'Delivery could not be confirmed. Your message is still here; please wait a minute and retry.', retryAfter: CONTACT_COOLDOWN_SECONDS }, 503, CONTACT_COOLDOWN_SECONDS);
       }

@@ -13,6 +13,7 @@ import { BankUnavailableError } from '../lib/server/bank-selection.ts';
 import { decodeCompact,canonical } from '../lib/bank/compact-codec.mjs';
 import {createReplayApi} from '../lib/server/replay-api.ts';
 import {recordExposures,exposureWeight} from '../lib/bank/exposure.ts';
+import {reserveQuestionSet,ReservationConflictError} from '../lib/bank/issuance-reservations.mjs';
 import { createGameApi } from '../lib/server/game-api.ts';
 import { createProblemReport } from '../lib/server/problem-report.ts';
 // The old storage fixtures explicitly opt into an isolated test-only eligibility policy.
@@ -57,6 +58,23 @@ test('compact conversion reconstructs canonical evidence, preserves immutable re
     await assert.rejects(decodeCompact({...row,content_hash:new Uint8Array(32)}),/hash mismatch/);
     await assert.rejects(decodeCompact({...row,payload_gzip:new Uint8Array([0,1,2])}));
   }finally{f.close();}
+});
+test('live reservations remain excluded through actual MC recent-item fallback and alias resolution',async()=>{
+ const f=fixture(),now=1000000,input={category:'integration',difficulty:'medium',count:3};
+ try{
+  const selected=await selectBankQuestions(f.db,input,{},undefined,now),q=selected.questions[0];
+  const recent={problems:selected.questions.map(q=>q.problemId)};
+  assert.equal((await selectBankQuestions(f.db,input,recent,undefined,now)).relaxation,'recent-problems');
+  const hold=reserveQuestionSet(recent,'held',[q],'issued',now);
+  await assert.rejects(selectBankQuestions(f.db,input,{...recent,...hold},undefined,now+1),BankUnavailableError);
+  const alias='historical-source-alias';
+  f.target.prepare('INSERT INTO cbank_problem_lineage(problem_id,lineage_id) VALUES (?,?)').run(alias,q.lineageId||q.problemId);
+  const aliased=reserveQuestionSet(recent,'held',[{problemId:alias,lineageId:alias}],'issued',now);
+  await assert.rejects(selectBankQuestions(f.db,input,{...recent,...aliased},undefined,now+1),BankUnavailableError);
+  assert.equal((await selectBankQuestions(f.db,input,{...recent,...hold},undefined,now+600000)).questions.length,3);
+  let queries=0;const noDb={prepare(){queries++;throw Error('No query expected');}};
+  await assert.rejects(selectActualBankQuestions(noDb,input,{reservationOverflowUntil:now+1},undefined,now),ReservationConflictError);assert.equal(queries,0);
+ }finally{f.close();}
 });
 test('compact indexed sampler respects filters/recency, bounds decompressions and rechecks retirement',async()=>{
   const f=fixture(),Original=globalThis.DecompressionStream;let decompressions=0;
@@ -107,6 +125,36 @@ test('compact import checksums, atomic receipts, interruption resume, immutable 
     await assert.rejects(db.batch([db.prepare(statement.replace(/X'[a-f0-9]{64}'/,"X'"+'0'.repeat(64)+"'"))]),/new problem revision/);
     writeFileSync(join(folder,plan.batches[0].file),'[]');assert.throws(()=>loadPlan(folder),/checksum/);
   }finally{target.close();f.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('import rechecks the exact execution bytes after callbacks and keeps original receipts',async()=>{
+  const f=fixture(),dir=mkdtempSync(join(tmpdir(),'compact-changed-batch-')),target=openCompact(':memory:');
+  try{
+    const folder=join(dir,'plan'),plan=exportCompact(f.target,folder,{rowsPerBatch:30}),db=localImportAdapter(target);
+    const second=join(folder,plan.batches[1].file),original=readFileSync(second),manifestBefore=readFileSync(join(folder,'manifest.json'),'utf8');
+    await assert.rejects(runImport(db,folder,{local:true,maxBatches:2,onProgress:()=>{
+      writeFileSync(second,JSON.stringify(["INSERT INTO cbank_config VALUES ('unreviewed','changed')"]));
+    }}),/Batch changed after plan validation/);
+    const receipts=target.prepare('SELECT * FROM cbank_import_receipts').all();
+    assert.equal(receipts.length,1);assert.equal(receipts[0].batch_id,plan.bundleId+'/0');assert.equal(receipts[0].sha256,plan.batches[0].sha256);
+    assert.equal(target.prepare("SELECT value FROM cbank_config WHERE key='unreviewed'").get(),undefined);
+    assert.equal(readFileSync(join(folder,'manifest.json'),'utf8'),manifestBefore);
+    writeFileSync(second,original);
+    const resumed=await runImport(db,folder,{local:true,maxBatches:2});assert.equal(resumed.completed,1);assert.equal(resumed.skipped,1);
+    const repeated=await runImport(db,folder,{local:true,maxBatches:2});assert.equal(repeated.completed,0);assert.equal(repeated.skipped,2);
+  }finally{target.close();f.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('operator transport rejects a file replaced while opening the reviewed tranche',async()=>{
+  const f=fixture(),dir=mkdtempSync(join(tmpdir(),'compact-changed-operator-'));
+  try{
+    const folder=join(dir,'plan'),plan=exportCompact(f.target,folder,{rowsPerBatch:30}),sent=[];
+    const state={budget:{mode:'operator-budget'},bundleId:plan.bundleId,nextSequence:0,receipts:[],trancheStart:0,trancheEnd:0};
+    await assert.rejects(runImport(null,folder,{mode:'operator-budget',maxBatches:1,operator:async input=>{
+      if(input.op==='status')return state;
+      if(input.op==='open'){writeFileSync(join(folder,plan.batches[0].file),'[]');return {...state,trancheEnd:1};}
+      sent.push(input);throw Error('Unreviewed import reached transport');
+    }}),/Batch changed after plan validation/);
+    assert.deepEqual(sent,[]);
+  }finally{f.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('resource counters remain unknown locally and preserve actual provider metadata',()=>{
   assert.deepEqual(collectMeta([{meta:{rows_read:2,rows_written:3,size_after:99,duration:1}},{meta:{rows_read:4,rows_written:5,size_after:123,duration:2}}]),{rowsRead:6,rowsWritten:8,sizeAfter:123,sqlDurationMs:3});
@@ -208,9 +256,10 @@ test('real selector, game and replay APIs agree on issued, displayed, abandoned 
   const saved=clone(data.get('replayContent/'+id));
   await call('replay',{op:'open',roundId:id,segmentId:'lifecycle-clock'});
   const upload=(chunkIndex,sequence,index,monotonicMs)=>call('replay',{op:'upload',roundId:id,segmentId:'lifecycle-clock',chunkIndex,anchorMs:0,uncertaintyMs:0,closed:false,events:[{schemaVersion:1,eventId:'display-'+sequence,sequence,monotonicMs,type:'question_displayed',questionIndex:index}]});
-  now+=10000;await upload(0,1,0,10000);expected=recordExposures(expected,id,[questions[0]],'displayed',now);assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
-  now+=10000;await call('games',{action:'answer',gameId:id,index:0,selectedOption:questions[0].correctIndex});expected=recordExposures(expected,id,[questions[0]],'attempted',now);assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
-  now+=10000;const profile=clone(data.get('users/lifecycle-player'));await upload(1,2,1,30000);expected=recordExposures(expected,id,[questions[1]],'displayed',now);assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);assert.deepEqual(data.get('users/lifecycle-player'),profile);
+  const displayedHold=(q,at)=>({roundId:id,problemId:q.problemId,lineageId:q.lineageId||q.problemId,stage:'displayed',at,expiresAt:at+86400000});
+  now+=10000;await upload(0,1,0,10000);expected={...recordExposures(expected,id,[questions[0]],'displayed',now),reservations:[displayedHold(questions[0],now)],reservationOverflowUntil:0};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
+  now+=10000;await call('games',{action:'answer',gameId:id,index:0,selectedOption:questions[0].correctIndex});expected={...recordExposures(expected,id,[questions[0]],'attempted',now),reservations:[]};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
+  now+=10000;const profile=clone(data.get('users/lifecycle-player'));await upload(1,2,1,30000);expected={...recordExposures(expected,id,[questions[1]],'displayed',now),reservations:[displayedHold(questions[1],now)]};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);assert.deepEqual(data.get('users/lifecycle-player'),profile);
   now=created+20*60000;
   const next=await call('questions',{mode:'test',category:'integration',difficulty:'easy',count:1});
   assert.deepEqual(observed.at(-1),expected);assert.equal(data.get('questionSets/'+next.questionSetId).questions[0].problemId,questions[2].problemId,'issued but never displayed/attempted item is eligible after ten minutes');

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { db } from '@/firebase';
-import { apiRequest } from '@/lib/game-session';
+import { apiRequest, gameProgress } from '@/lib/game-session';
 import { searchPublicProfiles } from '@/lib/stat-queries';
 import { usePanel } from '@/lib/use-panel';
 import { collection, query, where, orderBy, limit, doc, onSnapshot, getDoc } from 'firebase/firestore';
@@ -88,7 +88,7 @@ export function FriendsList() {
     if (!user || busy.current) return;
     const uid = user.uid; busy.current = true; setPending(true); setError(''); setStatus('');
     try {
-      const result = await apiRequest('social', { action, ...body });
+      const result = await apiRequest('social', { action, ...body },uid);
       if (scope.current !== uid) return;
       setStatus(message); after?.(result);
     } catch (e) { if (scope.current === uid) { setError(e instanceof Error ? e.message : 'Could not complete this action. Please retry.'); setIsOpen(true); } }
@@ -105,7 +105,10 @@ export function FriendsList() {
     finally { if (scope.current === uid && version === searchVersion.current) setSearching(false); }
   }
   const acceptInvite = (invite: RequestRow) => run('invite_accept', { id: invite.id }, 'Invitation accepted.', result => {
-    setToast(null); window.location.assign(`/play/${result.mode === 'multiplayer' ? 'multiplayer' : 'pvp'}?join=${result.gameId}`);
+    if (!user) return;
+    const destination = gameProgress.roomDestination(user.uid,result.gameId,result.mode,result);
+    setToast(null);
+    window.location.assign(destination);
   });
   const controls = (row: RequestRow, invitation = false) => <div className="ml-auto flex shrink-0"><button disabled={pending} aria-label={invitation ? 'Accept game invitation' : 'Accept friend request'} className={actionClass} onClick={() => invitation ? acceptInvite(row) : run('accept', { id: row.id }, 'Friend request accepted.')}><Check className="h-4 w-4" /></button><button disabled={pending} aria-label={invitation ? 'Decline game invitation' : 'Decline friend request'} className={actionClass} onClick={() => run(invitation ? 'invite_reject' : 'reject', { id: row.id }, invitation ? 'Invitation declined.' : 'Friend request declined.')}><X className="h-4 w-4" /></button></div>;
   const section = (title: string, children: React.ReactNode) => <section className="space-y-2"><h4 className="px-1 text-xs font-bold uppercase tracking-wide text-zinc-400">{title}</h4>{children}</section>;

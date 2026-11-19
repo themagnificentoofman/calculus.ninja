@@ -1,0 +1,33 @@
+{
+  "version": "checker-sources-1",
+  "checkers": {
+    "exact-algebra-1/bounded-latex-1": {
+      "graderVersion": "exact-algebra-1",
+      "parserVersion": "bounded-latex-1",
+      "sourceHash": "1ae21d694037ba320151199e0020fff9175d1d11ccc6e10fa9489766024290fd",
+      "sources": {
+        "lib/math-answer/contracts.ts": "4d6bbcee379f11a6f05cef83e464b1378b385c011d7e74a768e858556fed644b",
+        "lib/math-answer/parser.mjs": "662eee9d4a4c2244c77faff284214ec0982f2c0f3a0071d2b5ea8e166982c2da",
+        "lib/math-answer/rational.mjs": "2c67e18261b2d3a29ad273f687e7b3688c3e89a11cc940a8930e11b9e096dfa7",
+        "lib/math-answer/algebra.mjs": "4a433a51ba40f469dda2d3855f3bc603940768a065451d5e08e8ee742326434e",
+        "lib/math-answer/domain.mjs": "7efa1b6af7154869479b734677ae24e28e0253c598a3c699f191e8b5d1cb59c5",
+        "lib/math-answer/grade.mjs": "a229f26f4aab7995c69038d7bd97b3c7ee76a085df0bb2c9215e5a4b6a3879dc"
+      }
+    },
+    "exact-algebra-2/bounded-latex-2": {
+      "graderVersion": "exact-algebra-2",
+      "parserVersion": "bounded-latex-2",
+      "sourceHash": "0142a4acaa36fbb0c2e3ad6e929e9dec1055565463657494dbc6df4ec54ac335",
+      "sources": {
+        "lib/math-answer/contracts.ts": "4d6bbcee379f11a6f05cef83e464b1378b385c011d7e74a768e858556fed644b",
+        "lib/math-answer/v2/algebra.mjs": "4a433a51ba40f469dda2d3855f3bc603940768a065451d5e08e8ee742326434e",
+        "lib/math-answer/v2/constant-certificate.mjs": "08d1a673817d09862954b31c90a061a51b6444465cae021c5cc954d6cf56fb4b",
+        "lib/math-answer/v2/domain.mjs": "7efa1b6af7154869479b734677ae24e28e0253c598a3c699f191e8b5d1cb59c5",
+        "lib/math-answer/v2/grade.mjs": "376f5bde0615ee18ae5531c20b9401efbea30629a70c68acb09c93244dcb18f2",
+        "lib/math-answer/v2/parser.mjs": "d6bf8db0d05b9c645c1d6154d5f35564a56e82ec3c6eec3b030c190e51f9fc10",
+        "lib/math-answer/v2/rational.mjs": "2c67e18261b2d3a29ad273f687e7b3688c3e89a11cc940a8930e11b9e096dfa7",
+        "lib/math-answer/versioned-contracts.ts": "624078e4af734c2d373de3a77714e886b52bfd9a0d20b3abf3238b5b25d9a567"
+      }
+    }
+  }
+}

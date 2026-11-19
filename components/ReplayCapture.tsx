@@ -6,6 +6,7 @@ import {apiRequest} from '@/lib/game-session';
 import {CaptureQueue,indexedCaptureStorage} from '@/lib/replay/queue';
 import {registerCapture,observeReplay} from '@/lib/replay/browser-events';
 import type {ClientEvent,ClientEventType} from '@/lib/replay/contracts';
+import {roundIdFromSearch} from '@/lib/round-url.mjs';
 let queue:CaptureQueue|undefined;
 const getQueue=()=>queue ||= new CaptureQueue(indexedCaptureStorage,input=>apiRequest('replay',input),{mono:()=>performance.now(),wall:()=>Date.now(),uuid:()=>crypto.randomUUID()});
 export interface CaptureView {index:number|null;feedbackIndex:number|null;serverEventId?:string;selectedOption:number|null;finished:boolean;settled?:boolean}
@@ -14,7 +15,7 @@ export function useReplayCapture(uid:string|undefined,round:string|null,version:
  const current=useRef(view);current.current=view;
  const emitter=useRef<((type:ClientEventType,data?:Partial<ClientEvent>)=>void)|null>(null);
  useEffect(()=>{
-  if(!uid||!round||version!==1)return;
+  if(!uid||!round||(version!==1&&version!==2))return;
   const q=captureQueue||getQueue();let active=true,closed=false,chain:Promise<unknown>=q.create(uid,round),key='',retryAt=0,failures=0,broken=false,reportedFinal=false;
   chain=chain.then(k=>{key=k as string;});
   const emit=(type:ClientEventType,data:Partial<ClientEvent>={})=>{
@@ -32,21 +33,21 @@ export function useReplayCapture(uid:string|undefined,round:string|null,version:
  },[uid,round,version,captureQueue]);
  const previous=useRef<{round:string|null;index:number|null;feedback:string|null;finished:boolean;closed?:boolean}>({round:null,index:null,feedback:null,finished:false});
  useEffect(()=>{
-  if(!round||version!==1||!emitter.current)return;
+  if(!round||(version!==1&&version!==2)||!emitter.current)return;
   const emit=emitter.current,p=previous.current;if(p.round!==round){p.round=round;p.index=null;p.feedback=null;p.finished=false;}
   if(view.index!==null&&view.index!==p.index&&!document.hidden)emit('question_displayed',{questionIndex:view.index});p.index=view.index;
   const feedback=view.feedbackIndex!==null?`${view.feedbackIndex}:${view.serverEventId}`:null;
   if(feedback&&feedback!==p.feedback&&!document.hidden)emit('feedback_displayed',{questionIndex:view.feedbackIndex!,serverEventId:view.serverEventId});p.feedback=feedback;
   if(view.finished&&!p.finished)emit('result_displayed');p.finished=view.finished;if(view.finished&&view.settled!==false&&!p.closed){emit('session_closed');p.closed=true;}
  },[round,version,view.index,view.feedbackIndex,view.serverEventId,view.finished,view.settled,revision]);
- return version===1?status:version===undefined?'':'Legacy';
+ return (version===1||version===2)?status:version===undefined?'':'Legacy';
 }
 export function ReplayCaptureStatus({status}:{status:string}){return status?<p className="my-2 text-xs text-zinc-400" role="status">Replay: {status}</p>:null;}
 export {observeReplay};
 /** A stored round is resumable without creating a replacement or new question set. */
 export function useRoundUrl(uid:string|undefined,round:string|null,restore:(id:string)=>void){
  const initialized=useRef(false),previousRound=useRef<string|null>(null),callback=useRef(restore);callback.current=restore;
- useEffect(()=>{if(!uid||initialized.current)return;initialized.current=true;const id=new URLSearchParams(location.search).get('round');if(id&&/^[a-zA-Z0-9]{5,30}$/.test(id))callback.current(id);},[uid]);
+ useEffect(()=>{if(!uid||initialized.current)return;initialized.current=true;const id=roundIdFromSearch(location.search);if(id)callback.current(id);},[uid]);
  useEffect(()=>{if(!round){if(previousRound.current){clearRoundUrl();previousRound.current=null;}return;}previousRound.current=round;const url=new URL(location.href);url.searchParams.delete('join');url.searchParams.set('round',round);history.replaceState(null,'',url);},[round]);
 }
 

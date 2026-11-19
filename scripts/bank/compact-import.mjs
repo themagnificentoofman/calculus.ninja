@@ -56,6 +56,15 @@ export function loadPlan(directory) {
   for(const batch of p.batches){if(!/^batch-\d{5}\.json$/.test(batch.file) || sha(readFileSync(join(directory,batch.file)))!==batch.sha256) throw Error('Batch checksum mismatch');}
   return p;
 }
+function verifiedBatch(directory,batch) {
+  // Bind execution to the same detached bytes we check. A file may change
+  // after loadPlan while an allowance, receipt or earlier batch is awaited.
+  const bytes=readFileSync(join(directory,batch.file));
+  if(bytes.byteLength!==batch.bytes || sha(bytes)!==batch.sha256)throw Error('Batch changed after plan validation');
+  const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes),sql=JSON.parse(text);
+  if(!Array.isArray(sql)||sql.length!==batch.statements||sql.some(s=>typeof s!=='string'))throw Error('Invalid reviewed batch statements');
+  return {text,sql};
+}
 export function collectMeta(results) {
   const list=Array.isArray(results)?results:[results];
   const sum=key=>list.every(r=>Number.isFinite(r.meta?.[key]))?list.reduce((n,r)=>n+r.meta[key],0):null;
@@ -76,7 +85,7 @@ export async function runImport(db,directory,{local=false,mode='provider-allowan
     if(state.trancheStart>startIndex||state.trancheEnd!==endIndexExclusive||state.trancheEnd-state.trancheStart>25)throw Error('Operator tranche boundary mismatch');
     let completed=0;
     for(let index=startIndex;index<endIndexExclusive;index++){
-      state=await operator({op:'import',index,text:readFileSync(join(directory,plan.batches[index].file),'utf8')});
+      state=await operator({op:'import',index,text:verifiedBatch(directory,plan.batches[index]).text});
       if(state.sha256!==plan.batches[index].sha256||state.nextSequence!==index+1||state.halted)throw Error('Operator commit verification failed');
       completed++;if(checkpointPath)appendFileSync(checkpointPath,JSON.stringify({index,nextIndex:index+1,sha256:state.sha256,budget:state.budget,measurements:state.measurements,settlement:state.settlement})+'\n');
       await onProgress({completed,total:endIndexExclusive-startIndex,nextIndex:index+1,budget:state.budget});
@@ -109,7 +118,7 @@ export async function runImport(db,directory,{local=false,mode='provider-allowan
     if(old.results[0]) {if(old.results[0].sha256!==batch.sha256) throw Error('Receipt conflict');skipped++;measurements.push({batchId,sha256:batch.sha256,skipped:true,receiptLookup:lookup});continue;}
     if(index<startIndex)throw Error('Missing earlier receipt at sequence '+index+'; reconcile checkpoint before resuming');
     if(!local && written+batch.estimatedRowIndexWrites+1+approval.writeReserve>approval.remainingWrites) throw Error('Write allowance reached; resume after a confirmed refresh');
-    const statements=JSON.parse(readFileSync(join(directory,batch.file),'utf8')).map(s=>db.prepare(s));
+    const statements=verifiedBatch(directory,batch).sql.map(s=>db.prepare(s));
     // A concurrent duplicate must roll back, not silently ignore a conflicting receipt.
     statements.push(db.prepare('INSERT INTO cbank_import_receipts VALUES (?,?)').bind(batchId,batch.sha256));
     if(!local && Date.parse(approval.validUntil)<=Date.now())throw Error('Allowance expired before commit; no batch written');

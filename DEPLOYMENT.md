@@ -75,3 +75,5 @@ Enterprise pipelines perform matchmaking, profile search, history, leaderboard a
 `GET /api/health` only checks configuration presence. It does not prove the service identity’s IAM permissions, quota, or actual database connectivity. Protect and rotate the server credential through the hosting and Google Cloud controls.
 
 Waiting competitive lobbies expire after 30 minutes. Host cancellation closes the lobby; other players can leave before start. Invitation acceptance verifies current friendship and joins the game in the same transaction. Closing a tab does not cancel an active game; its server deadline still applies.
+
+Waiting-room heartbeat cleanup and public/private discovery are documented in [competitive lobbies](docs/lobbies.md). They use the existing database and deployed read rules; no new Firebase project, rules deployment or model credential is required. Preserve the member-only `private_waiting` listener projection and its browser normalization when changing the lobby code.

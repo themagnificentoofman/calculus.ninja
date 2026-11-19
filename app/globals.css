@@ -115,11 +115,18 @@ button:disabled {
 
 /* Prose wraps normally. Keep each solution equation intact and scrollable;
    max-content prevents a centered long equation from clipping its left edge. */
-.solution-steps .katex-display > .katex {
+.solution-steps .katex-display > .katex,
+.study-lesson .katex-display > .katex {
   width: max-content;
   min-width: 100%;
   white-space: nowrap;
 }
-.solution-steps .katex-display > .katex > .katex-html {
+.solution-steps .katex-display > .katex > .katex-html,
+.study-lesson .katex-display > .katex > .katex-html {
   white-space: nowrap;
+}
+
+/* The answer field offers entry tools only, with no context-menu assistance. */
+.math-answer-field::part(menu-toggle) {
+  display: none;
 }

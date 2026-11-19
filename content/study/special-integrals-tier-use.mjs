@@ -1,0 +1,27 @@
+// Proposed scoped relationships, not coverage certificates or rating changes.
+const use=(tier,topic,concept,role,explanation,...anchors)=>({tier,topic,concept,role,explanation,anchors});
+export const specialIntegralTierUse={
+ 'coordinates-spatial':[
+  use('medium','multivariable','integration','core','Set up and evaluate triple integrals with genuine dependent bounds, including a second slicing order and average-height normalization.','triple-slices','example-paraboloid-quarter-solid','exercise-cartesian-tetrahedral-slices'),
+  use('medium','multivariable','coordinates','core','Define cylindrical and spherical coordinates, derive their volume determinants, and translate radial, angular and height restrictions with one-to-one coverage.','cylindrical-map','spherical-map','example-conical-half-shell'),
+  use('hard','multivariable','coordinates','foundation','Extend planar coordinate checks to spatial branches and a proved radial singularity threshold. General nonlinear or many-to-one geometry remains separate.','spatial-change-rule','bounds-and-singularities','exercise-radial-singularity-threshold'),
+  use('hard','integration','convergence','foundation','Use shell truncations and the transformed radial power to prove a sharp ordinary-integrability condition. Oscillatory and conditionally convergent spatial problems are outside this scope.','exercise-radial-singularity-threshold','boundary-cases'),
+  use('olympiad','multivariable','integration','foundation','Supply the volume-coordinate and angular-coverage bridge needed before advanced homogeneity or geometric transformations; no coarea or sphere quadratic-form identity is proved.','spherical-map','example-conical-half-shell','bounds-and-singularities'),
+ ],
+ 'beta-gamma':[
+  use('medium','integration','bounds','extension','Extend basic improper-integral comparisons and substitutions to fractional endpoint powers and exponential tails. Gamma notation organizes these examples but is not an Easy prerequisite.','real-definitions','example-cubic-exponential-moment','exercise-decreasing-exponential-beta'),
+  use('hard','integration','special','core','Define real Gamma and Beta functions, prove their connection and half-integer values, and evaluate transformed integrals on their actual convergence domains.','beta-gamma-identity','half-integer-values','example-two-singular-endpoint-powers','exercise-rational-tail-parameter-range'),
+  use('hard','integration','reduction','core','Derive Gamma and Beta recurrences and use them with explicit parameter shifts. Differentiating parameters and log moments are not established.','gamma-recurrence','beta-gamma-identity'),
+  use('hard','integration','convergence','core','Prove strict endpoint and tail conditions before using a special-function quotient, including logarithmic boundary failures.','real-definitions','exercise-rational-tail-parameter-range','boundary-cases'),
+  use('olympiad','integration','special','foundation','Provide real integral definitions and usable constants before more advanced special-function identities, asymptotics or sharp inequalities. Reflection, analytic continuation and principal values are not taught.','half-integer-values','substitution-ledger','boundary-cases'),
+  use('olympiad','multivariable','parameters','foundation','Supply the convergent Beta/Gamma factors used by simplex and Gaussian moments. Logarithmic parameter derivatives and variational arguments still require further instruction.','beta-gamma-identity','half-integer-values'),
+ ],
+ 'multi-moments':[
+  use('medium','multivariable','integration','extension','Apply established triple-volume notation to a weighted tetrahedron with explicit slices; the general finite-dimensional formulas extend the Medium expectation.','finite-dimensional-integrals','exercise-tetrahedron-slack-moment'),
+  use('hard','integration','special','core','Use the Beta identity inductively to prove a Dirichlet normalization, and Gamma half-integer moments to obtain Gaussian integrals.','dirichlet-proof','gaussian-normalization','example-weighted-triangle-mass-and-mean'),
+  use('hard','multivariable','coordinates','core','Check real positive-definite linear changes, absolute determinants, whole-region coverage and a parameter threshold. General nonlinear maps are not covered.','gaussian-normalization','example-shifted-correlated-gaussian','exercise-gaussian-parameter-threshold','boundary-cases'),
+  use('olympiad','multivariable','structure','core','Derive the positive-definite Gaussian determinant formula and explain singular/indefinite failure with a positive-volume divergence argument. Spherical homogeneity and spectral optimization need further steps.','gaussian-normalization','example-shifted-correlated-gaussian','exercise-gaussian-parameter-threshold'),
+  use('olympiad','multivariable','parameters','core','Prove simplex mass and first/second normalized moments, and centered Gaussian covariance with an explicit exponent convention. This is moment calculation, not logarithmic differentiation or entropy optimization.','simplex-domain','normalized-moments','gaussian-second-moments','exercise-tetrahedron-slack-moment'),
+  use('olympiad','multivariable','integration','foundation','Provide the positive-exponent and normalization bridge for later power-coordinate volume or matrix-cone work. The required nonlinear Jacobians, orthant counts and cone measures are not supplied by the formulas alone.','dirichlet-proof','finite-dimensional-integrals','boundary-cases'),
+ ],
+};

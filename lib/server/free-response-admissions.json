@@ -1,0 +1,12 @@
+{
+  "version": "free-response-admission-2",
+  "activeChecker": "exact-algebra-2/bounded-latex-2",
+  "checkers": {
+    "exact-algebra-2/bounded-latex-2": {
+      "graderVersion": "exact-algebra-2",
+      "parserVersion": "bounded-latex-2",
+      "checkerSourceHash": null
+    }
+  },
+  "records": {}
+}

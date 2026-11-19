@@ -2,7 +2,8 @@ import { importPKCS8, SignJWT } from 'jose';
 
 export type Data = Record<string, any>;
 export interface Transaction { get(path: string): Promise<Data | null>; set(path: string, data: Data): void; delete(path: string): void }
-export interface Store { get(path: string): Promise<Data | null>; transaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T>; find(collection: string, filters: [string, string, unknown][], limit?: number): Promise<{ id: string; data: Data }[]> }
+type ReadCommitted<T> = (get: Transaction['get']) => Promise<T | null>;
+export interface Store { get(path: string): Promise<Data | null>; transaction<T>(fn: (tx: Transaction) => Promise<T>, readCommitted?: ReadCommitted<NoInfer<T>>): Promise<T>; find(collection: string, filters: [string, string, unknown][], limit?: number): Promise<{ id: string; data: Data }[]> }
 export class StoreError extends Error { status: number; constructor(status: number) { super('Database request failed.'); this.status = status; } }
 
 let cached: { source: string; until: number; token: Promise<string> } | undefined;
@@ -67,7 +68,7 @@ export function firestoreStore(projectId: string, databaseId: string, token: () 
   };
   return {
     get,
-    async transaction(fn) {
+    async transaction(fn, readCommitted) {
       for (let attempt = 0; attempt < 6; attempt++) {
         const { transaction } = (await request(':beginTransaction', { options: { readWrite: {} } }))!;
         const writes = new Map<string, any>();
@@ -79,7 +80,21 @@ export function firestoreStore(projectId: string, databaseId: string, token: () 
           return result;
         } catch (error) {
           await request(':rollback', { transaction }).catch(() => {});
-          if (!(error instanceof StoreError) || ![409, 503].includes(error.status) || attempt === 5) throw error;
+          if (!(error instanceof StoreError) || ![409, 503].includes(error.status)) throw error;
+          if (attempt === 5) {
+            if (readCommitted) {
+              // Inspect one consistent snapshot for a domain-verified receipt.
+              // Missing or unverifiable evidence cannot authorize another mutation.
+              const snapshot = (await request(':beginTransaction', { options: { readOnly: {} } }))!;
+              try {
+                const committed = await readCommitted(path => get(path, snapshot.transaction));
+                if (committed !== null) return committed;
+              } finally {
+                await request(':rollback', { transaction: snapshot.transaction }).catch(() => {});
+              }
+            }
+            throw error;
+          }
           await new Promise(resolve => setTimeout(resolve, 40 * 2 ** attempt + Math.random() * 30));
         }
       }
@@ -88,7 +103,8 @@ export function firestoreStore(projectId: string, databaseId: string, token: () 
     async find(collection, filters, limit = 100) {
       if (!/^[a-zA-Z0-9_]+$/.test(collection)) throw new Error('Invalid collection.');
       const predicates = filters.map(([field, op, value]) => {
-        if (!/^[a-zA-Z0-9_]+$/.test(field) || !['ARRAY_CONTAINS', 'EQUAL', 'LESS_THAN_OR_EQUAL'].includes(op)) throw new Error('Invalid query filter.');
+        if (!/^[a-zA-Z0-9_]+$/.test(field) || !['ARRAY_CONTAINS', 'EQUAL', 'LESS_THAN_OR_EQUAL', 'IS_ABSENT'].includes(op)) throw new Error('Invalid query filter.');
+        if (op === 'IS_ABSENT') return { functionValue: { name: 'is_absent', args: [{ fieldReferenceValue: field }] } };
         return { functionValue: { name: op === 'ARRAY_CONTAINS' ? 'array_contains' : op === 'LESS_THAN_OR_EQUAL' ? 'less_than_or_equal' : 'equal', args: [{ fieldReferenceValue: field }, encode(value)] } };
       });
       const stages = [{ name: 'collection', args: [{ referenceValue: `/${collection}` }] },

@@ -7,6 +7,7 @@ import { FriendsList } from '@/components/FriendsList';
 import {ReplayQueueSync} from '@/components/ReplayCapture';
 import { Navbar } from '@/components/Navbar';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import {studyLessonIndex} from '@/lib/study/catalog';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,13 +27,13 @@ export const metadata: Metadata = {
   description: 'A competitive calculus trainer and multiplayer game with various modes, ratings, and step-by-step LaTeX explanations.',
 };
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default async function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="bg-background text-foreground min-h-screen font-sans antialiased hexagon-bg">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
           <AuthProvider>
-            <ReplayQueueSync /><Navbar />
+            <ReplayQueueSync /><Navbar showStudy={(await studyLessonIndex()).length>0}/>
             {children}
             <FriendsList />
           </AuthProvider>

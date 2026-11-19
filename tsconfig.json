@@ -49,6 +49,7 @@
     ".wrangler",
     ".sites-runtime",
     "outputs",
+    "docs",
     "work",
     ".migration-starter",
     "scripts/bank/quality/series/mathematical/evidence"

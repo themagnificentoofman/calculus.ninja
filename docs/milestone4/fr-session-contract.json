@@ -1,0 +1,96 @@
+{
+  "version": "free-response-horizon-v1",
+  "baselineCommit": "fa22010f6f7ec83e90e0d8f6d0f63375be981088",
+  "baselineRelease": "cn-2026-11-04-quality-v4",
+  "initialHistory": "empty for main horizon; separate returning fixtures",
+  "historyPolicy": {
+    "maxEntries": 512,
+    "attemptedLifetimeDays": 14,
+    "issuedLifetimeMinutes": 10,
+    "displayedLifetimeDays": 1,
+    "roundSpacingMinutes": 20,
+    "secondsBetweenAttempts": 30
+  },
+  "rounds": {
+    "olympiad": 10,
+    "easy": 5,
+    "medium": 5,
+    "hard": 5
+  },
+  "count": 20,
+  "mainGates": {
+    "exactEquivalentRepeats": 0,
+    "withinRoundDuplicates": 0,
+    "familyCap": 2,
+    "sameFamilyAdjacency": 0,
+    "relaxedRounds": 0,
+    "requestFailures": 0,
+    "olympiadMeanQualifiedIdeas": 16
+  },
+  "headroomTarget": 1.2,
+  "integrationToleranceRule": {
+    "deriveFrom": "development-seed baseline sequence-mean variability before candidate evaluation",
+    "ideaMeanLoss": "max(0.25, 2 * baseline sequence-mean standard deviation)",
+    "methodMeanLoss": "max(0.5, 2 * baseline sequence-mean standard deviation)",
+    "nearCloneWindowMeanIncrease": "max(0.2, 2 * baseline sequence-mean standard deviation)"
+  },
+  "seeds": {
+    "development": [
+      2577767025,
+      3950169241,
+      2443628845,
+      4102543492,
+      889192724,
+      1846841970,
+      3354351392,
+      3375415075,
+      1533150228,
+      2372617563,
+      1104797468,
+      1222177094,
+      1555727968,
+      2906751620,
+      2500864570,
+      2932943300,
+      1458614548,
+      3611458331,
+      3551181223,
+      540703636
+    ],
+    "heldout": [
+      4232776170,
+      1210742470,
+      109811217,
+      695962039,
+      544076292,
+      1797495215,
+      3122326377,
+      2338599053,
+      2518895748,
+      2857951681,
+      2997086306,
+      1437914797,
+      1564361331,
+      829000791,
+      2737651749,
+      2259907317,
+      2942589871,
+      4110248971,
+      2016868891,
+      3099126159
+    ]
+  },
+  "heldoutPolicy": "New FR seeds reserved before policy tuning. Run only after development gates pass, preserve every result and failure, and never replace seeds. V39 seeds remain MC regression evidence and are not relabeled as unseen.",
+  "answerFormat": "free-response",
+  "reservedAt": "2026-11-04",
+  "status": "Reserved before FR selector implementation or pool tuning; no FR session evaluation performed",
+  "additionalScenarios": [
+    "returning-history",
+    "cross-format-history",
+    "narrow-drill",
+    "sparse-pool",
+    "retention-bound",
+    "legacy-disabled",
+    "withdrawal-and-revision-precedence"
+  ]
+}

@@ -1,0 +1,21 @@
+const use=(tier,topic,concept,role,explanation,...anchors)=>({tier,topic,concept,role,explanation,anchors});
+export const strategyTierUse={
+ 'strategy-object':[
+  use('easy','mixed','object-domain','core','Select an amount, rate, finite total or tail from the request; preserve input restrictions, sign, physical units and scale. These are four bounded one-dimensional models.','object-before-operation','domains-and-local-models','example-cost-per-quantity','exercise-tank-record','exercise-pulse-record'),
+  use('easy','mixed','representations','core','Construct a polygonal graph from exact labeled vertices, distinguish heights, slopes and signed regions, and verify it with affine formulas. The transfer requires a sketch; arbitrary graph-only or noisy-data interpretation is not assessed.','graph-to-quantity','example-motion-record','exercise-tank-record'),
+  use('easy','differentiation','meaning','core','Distinguish position, velocity and acceleration on a graph, and distinguish average cost from its local rate. Corner slopes and the model interval are explicit.','object-before-operation','example-motion-record','example-cost-per-quantity'),
+  use('easy','integration','accumulation','core','Select signed net change, total crossing volume or final amount with an initial condition and units.','example-motion-record','exercise-tank-record'),
+  use('easy','series','partial-sums','core','Distinguish a finite count, next term, eventual sum and whole tail, including a strict minimal-count test.','finite-and-eventual','exercise-pulse-record'),
+  use('medium','mixed','method-selection','foundation','Establish the requested object before combining standard methods; this lesson itself does not teach a broad repertoire of Medium methods.','object-before-operation','exercise-tank-record','exercise-pulse-record'),
+ ],
+ 'strategy-choice':[
+  use('medium','mixed','method-selection','core','Select representations without a named method in the transfer statements, compare two calculations and reject an attractive incomplete shortcut. Scope is elementary rational integration and geometric-series calculus.','choose-representation','what-counts-as-a-check','exercise-exact-integral-record','exercise-series-defined-area'),
+  use('medium','mixed','connections','core','Connect the FTC and chain rule with direct primitives; connect finite geometric algebra, differentiated power series and justified integration of finite approximants.','example-changing-window','example-weighted-record','exercise-series-defined-area'),
+  use('medium','integration','methods','foundation','Use polynomial division and a logarithmic-derivative remainder as two short rational-integral representations. Repeated-factor partial fractions, trigonometric substitution and integration by parts remain in their own lessons.','exercise-exact-integral-record'),
+  use('medium','integration','bounds','core','Keep the sign and speed of a moving upper endpoint while comparing the derivative with a direct evaluation. Basic improper integration is contrasted but not developed here.','example-changing-window','boundary-cases'),
+  use('medium','series','power','core','Use geometric power-series differentiation inside its interval and a finite uniform remainder to justify integrated approximants; test the failed endpoint in the original series.','conditions-before-shortcuts','example-weighted-record','exercise-series-defined-area'),
+  use('medium','series','errors','core','Control the whole positive tail after odd integrals cancel, and distinguish a coarse valid estimate from one that actually meets the requested tolerance. Conditional convergence is outside this lesson.','finite-identities-and-bounds','exercise-series-defined-area'),
+  use('hard','mixed','decomposition','foundation','Practice changing representations and separating exact evaluation from error certification before harder problems. No Hard construction is claimed solved by these examples alone.','what-counts-as-a-check','exercise-series-defined-area'),
+  use('hard','mixed','exceptions','foundation','Build the habit of retaining endpoint terms and checking domains, convergence and uniform bounds. Nonroutine branches and exceptional parameters still need further teaching.','conditions-before-shortcuts','finite-identities-and-bounds','boundary-cases'),
+ ],
+};

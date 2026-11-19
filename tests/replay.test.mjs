@@ -6,6 +6,9 @@ import {initialState,compileReplay,reduceEvent,orderEvents,originalClock,problem
 import {PlaybackClock,loadReplay} from '../lib/replay/playback.ts';
 import {replayStatus,REPLAY_LIMITS,legacyMessage} from '../lib/replay/contracts.ts';
 import {CaptureQueue} from '../lib/replay/queue.ts';
+import {rememberFirstDisplayTime} from '../lib/replay/first-display-time.ts';
+import {recordExposures} from '../lib/bank/exposure.ts';
+import {reserveQuestionSet,ReservationConflictError,reservedIdentities} from '../lib/bank/issuance-reservations.mjs';
 const clone=v=>v===undefined?undefined:structuredClone(v);
 class MemoryStore {
  docs=new Map();writes=0;retry=false;
@@ -40,6 +43,35 @@ for(const mode of ['test','rapid','pvp','multiplayer-target','multiplayer-time']
  await s.games.storeQuestions('alice','test','integration','easy',fixture().map(q=>({...q,latexProblem:'replacement',problemRevision:8})));assert.deepEqual((await s.store.get(`replayContent/${id}`)).questions,content.questions);
 });
 const event=(sequence,type,extra={})=>({schemaVersion:1,eventId:`event_${sequence}`,sequence,monotonicMs:sequence*100,type,...extra});
+test('first display clocks are bounded, durable and never refreshed by a later segment',()=>{
+ const summary={};assert.equal(rememberFirstDisplayTime(summary,0,1500.75,1000,false,2000),1500);
+ assert.equal(rememberFirstDisplayTime(summary,0,7000,1000,true,8000),1500);
+ assert.equal(rememberFirstDisplayTime(summary,1,7000,1000,true,8000),1000,'historical observed display has no invented new clock');
+ for(const firstDisplayAt of [null,[],Array(20),Array(21).fill(null),[900,...Array(19).fill(null)],[9000,...Array(19).fill(null)]])assert.throws(()=>rememberFirstDisplayTime({firstDisplayAt},0,1500,1000,false,2000));
+ let reads=0;const accessor={get firstDisplayAt(){reads++;return Array(20).fill(null);}};assert.throws(()=>rememberFirstDisplayTime(accessor,0,1500,1000,false,2000));assert.equal(reads,0);
+ for(const args of [[-1,1500,1000,false,2000],[20,1500,1000,false,2000],[0,900,1000,false,2000],[0,3000,1000,false,2000],[0,Infinity,1000,false,2000]])assert.throws(()=>rememberFirstDisplayTime({},...args));
+});
+test('real replay uploads retain displays at 512 attempts without refreshing them after expiry',async()=>{
+ const s=await setup(),id=await s.create('test'),content=await s.store.get(`replayContent/${id}`),profile=await s.store.get('users/alice');
+ const retained=recordExposures({},'previous',Array.from({length:512},(_,i)=>({problemId:`old-${i}`,familyId:'old-family'})),'attempted',s.time());s.store.docs.set('bankRecent/alice',retained);
+ await s.call('alice',{op:'open',roundId:id,segmentId:'first_segment'});s.advance(1000);
+ const upload=(segmentId,mono)=>s.call('alice',{op:'upload',roundId:id,segmentId,chunkIndex:0,anchorMs:0,uncertaintyMs:0,closed:false,events:[{...event(1,'question_displayed',{questionIndex:0}),monotonicMs:mono}]});
+ await upload('first_segment',1000);
+ let history=await s.store.get('bankRecent/alice');assert.equal(history.exposures.length,512);assert.deepEqual(history.exposures,retained.exposures);assert.equal(history.reservations.length,1);
+ const first=history.reservations[0].at;assert.equal(first,s.time());assert.equal((await s.store.get(`replayCapture/${id}_alice`)).firstDisplayAt[0],first);
+ s.advance(2*86400000);await s.call('alice',{op:'open',roundId:id,segmentId:'second_segment'});await upload('second_segment',0);
+ history=await s.store.get('bankRecent/alice');assert.equal(history.reservations.length,0);assert.equal(history.exposures.length,512);assert.equal((await s.store.get(`replayCapture/${id}_alice`)).firstDisplayAt[0],first);
+ assert.deepEqual(await s.store.get(`replayContent/${id}`),content);assert.deepEqual(await s.store.get('users/alice'),profile);
+});
+test('late replay display at four held rounds persists an overflow exclusion without losing the upload',async()=>{
+ const s=await setup(),id=await s.create('test');let held={};
+ for(let r=0;r<4;r++)held=reserveQuestionSet(held,`another-${r}`,Array.from({length:20},(_,i)=>({problemId:`p-${r}-${i}`,lineageId:`l-${r}-${i}`})),'issued',s.time());
+ s.store.docs.set('bankRecent/alice',{...await s.store.get('bankRecent/alice'),...held});
+ await s.call('alice',{op:'open',roundId:id,segmentId:'late_segment'});s.advance(1000);
+ await s.call('alice',{op:'upload',roundId:id,segmentId:'late_segment',chunkIndex:0,anchorMs:0,uncertaintyMs:0,closed:false,events:[{...event(1,'question_displayed',{questionIndex:0}),monotonicMs:1000}]});
+ const history=await s.store.get('bankRecent/alice');assert.equal(history.reservations.length,80);assert.equal(history.reservationOverflowUntil,s.time()+86400000);assert.throws(()=>reservedIdentities(history,s.time()+600001),ReservationConflictError);
+ assert.equal((await s.store.get(`replayCapture/${id}_alice`)).events,1);
+});
 test('Client chunks: acknowledgements, identical retries, conflicts, gaps, bounded schema and participant privacy',async()=>{
  const s=await setup(),id=await s.create('test');await s.call('alice',{op:'open',roundId:id,segmentId:'segment1'});
  const payload={op:'upload',roundId:id,segmentId:'segment1',chunkIndex:0,anchorMs:50,uncertaintyMs:5,closed:false,events:[event(1,'session_open'),event(2,'question_displayed',{questionIndex:0})]};
@@ -82,7 +114,7 @@ test('Durable queue survives response loss and restart, retries immutable chunks
  const reopened=await b.create('alice',id);await b.event(reopened,'session_open');await b.event(reopened,'session_closed');await b.flush('alice');assert.equal((await s.store.get(`replayCapture/${id}_alice`)).segments.length,2);
 });
 test('Queue preserves offline events and marks an unanchored orphan instead of inventing an alignment',async()=>{const s=await setup(),id=await s.create('test'),storage=new MemoryCapture();let serial=0;const clock={mono:()=>500,wall:s.time,uuid:()=>`uuid_${++serial}`},q=new CaptureQueue(storage,async()=>{throw Error('offline');},clock,'old_page');const key=await q.create('alice',id);await q.event(key,'question_displayed',{questionIndex:0});await assert.rejects(q.flush('alice'));assert.equal(storage.events.get(key).length,1);const recovered=new CaptureQueue(storage,b=>s.call('alice',b),clock,'new_page');await recovered.flush('alice');assert.equal((await s.store.get(`replayCapture/${id}_alice`)).segments[0].clockUncertain,true);});
-test('Missing chunks remain partial and provider failures do not acknowledge queued events',async()=>{const s=await setup(),id=await s.create('test');for(let i=0;i<3;i++)await s.games.act('alice',id,'answer',{index:i,selectedOption:0});s.store.docs.delete(`replayServer/${id}_000001`);const loaded=await loadReplay(id,b=>s.call('alice',b));assert.equal(loaded.status,'Partial');assert.ok(loaded.gaps.some(g=>g.startsWith('Missing server')));const broken=createReplayApi({store:{get:async()=>{throw Error('provider denied');}},verify:async()=>({sub:'alice'})});const response=await broken(new Request('https://ninja.test',{method:'POST',headers:{authorization:'Bearer alice','content-type':'application/json'},body:JSON.stringify({op:'open',roundId:id,segmentId:'segment1'})}));assert.equal(response.status,503);assert.ok(!(await response.json()).acknowledged);});
+test('Missing chunks remain partial and provider failures do not acknowledge queued events',async()=>{const s=await setup(),id=await s.create('test');for(let i=0;i<3;i++)await s.games.act('alice',id,'answer',{index:i,selectedOption:0});s.store.docs.delete(`replayServer/${id}_000001`);const loaded=await loadReplay(id,b=>s.call('alice',b));assert.equal(loaded.status,'Partial');assert.ok(loaded.gaps.includes('Part of the server recording is missing.'));const broken=createReplayApi({store:{get:async()=>{throw Error('provider denied');}},verify:async()=>({sub:'alice'})});const response=await broken(new Request('https://ninja.test',{method:'POST',headers:{authorization:'Bearer alice','content-type':'application/json'},body:JSON.stringify({op:'open',roundId:id,segmentId:'segment1'})}));assert.equal(response.status,503);assert.ok(!(await response.json()).acknowledged);});
 test('Capture limits are explicit and never delete old round history',async()=>{const s=await setup(),id=await s.create('test');for(let i=0;i<REPLAY_LIMITS.segmentsPerPlayer;i++)await s.call('alice',{op:'open',roundId:id,segmentId:`segment_${i}`});assert.equal((await s.call('alice',{op:'open',roundId:id,segmentId:'over_limit'})).replayStatus,'Partial');assert.ok(await s.store.get(`games/${id}`));assert.equal(replayStatus(1,true,{failed:true,segments:[{closed:true}]},0),'Partial');assert.equal(replayStatus(1,true,{segments:[{closed:false}]},1000,1100),'Syncing');assert.equal(replayStatus(1,true,{segments:[{closed:false}]},1000,200000),'Partial');});
 
 test('Server rejection is recorded once with an unchanged answer/reward state',async()=>{const s=await setup(),id=await s.create('rapid');const before=await s.store.get('users/alice');await assert.rejects(s.games.act('alice',id,'answer',{index:0,selectedOption:1,requestId:'rejected_one'}),e=>e.status===409);const chunk=await s.store.get(`replayServer/${id}_000001`);assert.equal(chunk.events[0].type,'answer_rejected');assert.equal(chunk.events[0].requestId,'rejected_one');await assert.rejects(s.games.act('alice',id,'answer',{index:0,selectedOption:1,requestId:'rejected_one'}));const second=await s.store.get(`replayServer/${id}_000002`);assert.notEqual(second.events[0].eventId,chunk.events[0].eventId);assert.deepEqual(await s.store.get('users/alice'),before);assert.equal(Object.keys((await s.store.get(`gameSecrets/${id}`)).answers).length,0);});

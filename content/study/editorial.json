@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "lessons": {
+    "limit-foundations": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/single/sec-1-2-lim.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus, 2nd Ed. — §1.2 The notion of limit",
+          "role": "recommended",
+          "why": "Compare what a function approaches near a point with the value it takes there."
+        }
+      ],
+      "exercises": {
+        "conjugate-limit": {
+          "revision": 2,
+          "difficulty": "easy",
+          "recommended": true,
+          "why": "Find where both square roots exist, then decide which part of the domain can approach the missing point."
+        }
+      }
+    },
+    "ftc": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/single/sec-4-4-FTC.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus, 2nd Ed. — §4.4 The Fundamental Theorem of Calculus",
+          "role": "recommended",
+          "why": "Connect an accumulated quantity with its antiderivative before considering two moving endpoints."
+        },
+        {
+          "url": "https://mathworld.wolfram.com/LeibnizIntegralRule.html",
+          "sourceId": "mathworld",
+          "title": "Wolfram MathWorld — Leibniz Integral Rule",
+          "role": "optional"
+        }
+      ],
+      "exercises": {
+        "crossing-endpoints": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": true,
+          "why": "Connect the direction of change of an integral with what happens when its two bounds meet."
+        }
+      }
+    },
+    "substitution": {
+      "revision": 1,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/single/sec-5-3-substitution.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus — §5.3 Integration by substitution",
+          "role": "recommended",
+          "why": "Follow how a definite integral’s endpoints change when the variable changes."
+        }
+      ],
+      "exercises": {
+        "cubic-orientation": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": true,
+          "why": "Check both the direction of a substitution and what happens when its derivative vanishes at an endpoint."
+        }
+      }
+    },
+    "nonuniform": {
+      "revision": 20261118,
+      "readings": [
+        {
+          "url": "https://mathworld.wolfram.com/UniformConvergence.html",
+          "sourceId": "mathworld",
+          "title": "MathWorld—A Wolfram Resource — Uniform Convergence",
+          "role": "optional"
+        },
+        {
+          "url": "https://activecalculus.org/single/sec-5-3-substitution.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus — §5.3 Integration by substitution",
+          "role": "recommended",
+          "why": "Review how to rescale an interval while keeping its transformed endpoints and area factor together."
+        }
+      ],
+      "exercises": {
+        "rational-layer-mass": {
+          "revision": 20261118,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Decide how much of an integral can survive in an interval whose width tends to zero."
+        }
+      }
+    },
+    "fourier-transforms": {
+      "revision": 2026111802,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/single/sec-6-5-improper.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus — §6.5 Improper integrals",
+          "role": "recommended",
+          "why": "Review how to check both tails of a whole-line integral before using symmetry."
+        },
+        {
+          "url": "https://mathworld.wolfram.com/TrigonometricFunctions.html",
+          "sourceId": "mathworld",
+          "title": "MathWorld—A Wolfram Resource — Trigonometric Functions",
+          "role": "optional"
+        }
+      ],
+      "exercises": {
+        "compact-cosine-window-resonances": {
+          "revision": 2026111802,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Decide which frequency cancellations survive when two copies of a signal overlap."
+        }
+      }
+    },
+    "spectral": {
+      "revision": 2026111802,
+      "readings": [
+        {
+          "url": "https://www.jirka.org/diffyqs/html/sec_ccsol.html",
+          "sourceId": "diffyqs",
+          "title": "Notes on Diffy Qs — Constant-coefficient second-order linear ODEs",
+          "role": "recommended",
+          "why": "Review how real, repeated and complex characteristic roots change the shape of a solution."
+        },
+        {
+          "url": "https://activecalculus.org/single/sec-5-4-parts.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus — §5.4 Integration by parts",
+          "role": "optional"
+        }
+      ],
+      "exercises": {
+        "zero-slope-spectrum": {
+          "revision": 20261118,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Test whether a change in endpoint conditions and an average constraint select the same modes."
+        }
+      }
+    },
+    "variational": {
+      "revision": 20261118,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/single/sec-5-4-parts.html",
+          "sourceId": "active-single",
+          "title": "Active Calculus — §5.4 Integration by parts",
+          "role": "recommended",
+          "why": "Review how endpoint values enter an integration-by-parts identity before comparing candidate curves."
+        },
+        {
+          "url": "https://mathworld.wolfram.com/SchwarzsInequality.html",
+          "sourceId": "mathworld",
+          "title": "MathWorld—A Wolfram Resource — Schwarz’s Inequality",
+          "role": "optional"
+        }
+      ],
+      "exercises": {
+        "prescribed-area-energy": {
+          "revision": 20261118,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Find a curve satisfying both constraints and prove that it is the unique minimizer."
+        }
+      }
+    },
+    "parameter-integrals": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://mathworld.wolfram.com/LeibnizIntegralRule.html",
+          "sourceId": "mathworld",
+          "title": "Wolfram MathWorld — Leibniz Integral Rule",
+          "role": "optional"
+        },
+        {
+          "url": "https://kconrad.math.uconn.edu/blurbs/analysis/diffunderint.pdf#page=16",
+          "sourceId": "conrad-differentiating-under-integral",
+          "title": "Keith Conrad — Differentiating Under the Integral Sign, §12: Counterexamples and justification (Theorem 12.3 and Corollary 12.4)",
+          "role": "recommended",
+          "why": "Read the hypotheses for differentiating an improper integral and compare them with the article’s counterexamples."
+        }
+      ],
+      "exercises": {
+        "both-moving-endpoints": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": false
+        },
+        "exponential-tail-derivative": {
+          "revision": 1,
+          "difficulty": "hard",
+          "recommended": false
+        },
+        "damped-sine-remainder-ode": {
+          "revision": 1,
+          "difficulty": "olympiad",
+          "recommended": true,
+          "why": "Test a parameter equation when convergence, differentiation and initial data each need justification."
+        }
+      }
+    },
+    "coordinates": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://activecalculus.org/multi/S-11-9-Change-of-Variable.html",
+          "sourceId": "active-multi",
+          "title": "Active Calculus: Multivariable — Change of Variables",
+          "role": "recommended",
+          "why": "Follow a planar region into new variables and see where the Jacobian enters its area."
+        },
+        {
+          "url": "https://mathworld.wolfram.com/Jacobian.html",
+          "sourceId": "mathworld",
+          "title": "Wolfram MathWorld — Jacobian",
+          "role": "optional"
+        },
+        {
+          "url": "https://mathworld.wolfram.com/ChangeofVariablesTheorem.html",
+          "sourceId": "mathworld",
+          "title": "Wolfram MathWorld — Change of Variables Theorem",
+          "role": "optional"
+        }
+      ],
+      "exercises": {
+        "elliptic-disk-moment": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": false
+        },
+        "folded-rectangle": {
+          "revision": 1,
+          "difficulty": "hard",
+          "recommended": false
+        },
+        "positive-product-ratio-region": {
+          "revision": 1,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Track what changes when the transformed region has coupled bounds."
+        }
+      }
+    },
+    "taylor-remainders": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://dlmf.nist.gov/1.4#vi",
+          "sourceId": "dlmf",
+          "title": "NIST Digital Library of Mathematical Functions — §1.4(vi) Taylor’s Theorem",
+          "role": "recommended",
+          "why": "Compare remainder formulas and check what differentiability each one requires."
+        }
+      ],
+      "exercises": {
+        "shifted-sine": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": false
+        },
+        "exact-geometric-remainder": {
+          "revision": 1,
+          "difficulty": "hard",
+          "recommended": false
+        },
+        "oscillating-inner-cancellation": {
+          "revision": 1,
+          "difficulty": "hard",
+          "recommended": true,
+          "why": "Decide when a controlled Taylor approximation is strong enough to settle a limit."
+        }
+      }
+    },
+    "slope-fields": {
+      "revision": 2,
+      "readings": [
+        {
+          "url": "https://openstax.org/books/calculus-volume-2/pages/4-2-direction-fields-and-numerical-methods",
+          "sourceId": "openstax-calculus-2",
+          "title": "OpenStax Calculus Volume 2 — §4.2 Direction Fields and Numerical Methods",
+          "role": "recommended",
+          "why": "Start with Creating Direction Fields to see how to draw each segment from its numerical slope."
+        }
+      ],
+      "exercises": {
+        "choose-the-compatible-field": {
+          "revision": 1,
+          "difficulty": "medium",
+          "recommended": false
+        },
+        "horizontal-at-one-time": {
+          "revision": 1,
+          "difficulty": "easy",
+          "recommended": true,
+          "why": "Test whether the right slope at one point is enough to verify a proposed solution."
+        }
+      }
+    }
+  }
+}

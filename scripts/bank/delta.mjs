@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Immutable, reviewed delta with flattened composition and explicit withdrawal policy.
+import {archivedPredecessors,insertInactivePredecessor} from './inactive-predecessors.mjs';
+import {indexedPracticeTags} from '../../lib/bank/practice-technique-tags.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync,writeFileSync,mkdirSync,existsSync,copyFileSync,statSync } from 'node:fs';
 import { resolve,dirname,join } from 'node:path';
@@ -12,6 +14,7 @@ import {topics,difficulties} from '../../lib/server/questions-policy.mjs';
 import {applyReleasePolicy,flattenSources} from './quality/release-policy.mjs';
 import {verifyLegacyEligibility} from './quality/verify-legacy-eligibility.mjs';
 import {verifySelectionVocabulary} from './quality/verify-selection-vocabulary.mjs';
+import {catalogWriterPlan} from '../../lib/server/catalog-writer.mjs';
 const root=resolve(dirname(new URL(import.meta.url).pathname),'../..');
 const sha=v=>createHash('sha256').update(v).digest('hex');
 const quote=v=>v===null?'NULL':v instanceof Uint8Array?"X'"+Buffer.from(v).toString('hex')+"'":typeof v==='number'?String(v):"'"+String(v).replaceAll("'","''")+"'";
@@ -37,11 +40,25 @@ export async function prepareDelta(manifestPath,baselinePath,directory){
  writeFileSync(join(directory,'release-manifest.json'),canonical(manifest)+'\n');
  const source=openDatabase(join(directory,'delta-authoring.sqlite'));
  const records=text.trim().split('\n').map(JSON.parse);
+ const archived=archivedPredecessors(dirname(manifestPath),manifest.inactivePredecessors,records,manifest.artifactSha256);
+ const inactive=[];
  const baseline=new DatabaseSync(baselinePath,{readOnly:true});
  try{for(const p of records)if(p.problemRevision>1){
-  const prior=baseline.prepare('SELECT b.*,s.metadata_json FROM cbank_problems b JOIN cbank_shared s USING(shared_id) WHERE problem_id=? AND revision<? ORDER BY revision').all(p.problemId,p.problemRevision);
-  if(prior.length!==p.problemRevision-1)throw Error('Missing immutable prior revisions');
-  for(const row of prior)insertProblem(source,await decodeCompact(row));
+  const prior=baseline.prepare('SELECT b.*,s.metadata_json,u.state,u.retirement_reason FROM cbank_problems b JOIN cbank_shared s USING(shared_id) JOIN cbank_publication u USING(problem_ref) WHERE problem_id=? AND revision<? ORDER BY revision').all(p.problemId,p.problemRevision);
+  const existing=new Map(prior.map(row=>[row.revision,row]));
+  for(let revision=1;revision<p.problemRevision;revision++){
+   const row=existing.get(revision),archivedRow=archived.get(p.problemId+'@'+revision);
+   if(row){
+    const original=await decodeCompact(row);
+    if(archivedRow && canonical(original)!==canonical(archivedRow))throw Error('Archived predecessor conflicts with the physical baseline');
+    if(archivedRow && row.state==='retired')insertInactivePredecessor(source,original,row.retirement_reason);
+    else insertProblem(source,original);
+   }else{
+    if(!archivedRow)throw Error('Missing immutable prior revisions');
+    insertInactivePredecessor(source,archivedRow);
+    inactive.push([p.problemId,revision,archivedRow.contentHash]);
+   }
+  }
  }}finally{baseline.close();}
  const counts={},families={},slots=new Map();
  try{
@@ -49,7 +66,7 @@ export async function prepareDelta(manifestPath,baselinePath,directory){
  source.prepare("INSERT INTO bank_releases VALUES (?,?,?,'staging')").run(manifest.releaseId,canonical(servingManifest(manifest)),manifest.approvedCount);
  for(const p of records){if(p.schemaVersion!==2)throw Error('Only reviewed schema-2 additions in this release');insertProblem(source,p);
   const cell=p.topic+'/'+p.difficulty;counts[cell]=(counts[cell]||0)+1;families[p.familyId]=(families[p.familyId]||0)+1;
-  for(const tag of ['*',...new Set(p.techniqueTags)]){const key=canonical([p.topic,p.difficulty,tag,p.familyId]),slot=slots.get(key)||0;
+  for(const tag of ['*',...new Set(indexedPracticeTags(p))]){const key=canonical([p.topic,p.difficulty,tag,p.familyId]),slot=slots.get(key)||0;
    source.prepare('INSERT INTO bank_slots VALUES (?,?,?,?,?,?,?,?)').run(manifest.releaseId,p.topic,p.difficulty,tag,p.familyId,slot,p.problemId,p.problemRevision);slots.set(key,slot+1);}
  }
  if(canonical(counts)!==canonical(manifest.coverage)||canonical(families)!==canonical(manifest.families)||Object.values(counts).reduce((a,b)=>a+b,0)!==manifest.approvedCount)throw Error('Coverage mismatch');
@@ -64,6 +81,13 @@ export async function prepareDelta(manifestPath,baselinePath,directory){
  const before={problemRef:db.prepare('SELECT max(problem_ref) n FROM cbank_problems').get().n,sharedId:db.prepare('SELECT max(shared_id) n FROM cbank_shared').get().n,poolId:db.prepare('SELECT max(pool_id) n FROM cbank_pools').get().n,parentManifestSha256:sha(parent.manifest_json),parentCount:parent.expected_count};
  const compression=syncCompact(source,db,manifest.releaseId);
  const policy=applyReleasePolicy(db,manifest,records);
+ if(archived.size){
+  const status=db.prepare("SELECT lower(hex(b.content_hash)) hash,u.state,EXISTS(SELECT 1 FROM cbank_slots s WHERE s.problem_ref=b.problem_ref) slotted FROM cbank_problems b JOIN cbank_publication u USING(problem_ref) WHERE problem_id=? AND revision=?");
+  for(const [id,revision,hash] of inactive){
+   const row=status.get(id,revision);
+   if(!row || row.hash!==hash || row.state!=='retired' || row.slotted!==0)throw Error('Inactive predecessor entered serving membership');
+  }
+ }
  const tables=[['cbank_shared','shared_id>?',[before.sharedId],['shared_id']],['cbank_problems','problem_ref>?',[before.problemRef],['problem_ref']],['cbank_publication','problem_ref>?',[before.problemRef],['problem_ref']],['cbank_selection_features','problem_ref>?',[before.problemRef],['problem_ref']],['cbank_releases','release_id=?',[manifest.releaseId],['release_id']],['cbank_pools','release_id=?',[manifest.releaseId],['pool_id']],['cbank_slots','pool_id>?',[before.poolId],['pool_id','slot']],['cbank_release_sources','release_id=?',[manifest.releaseId],['release_id','source_release_id']],['cbank_release_exclusions','release_id=?',[manifest.releaseId],['release_id','problem_ref']],['cbank_withdrawn_families','introduced_by=?',[manifest.releaseId],['source_release_id','family_id','introduced_by']],['cbank_problem_lineage','problem_id IN (SELECT value FROM json_each(?))',[JSON.stringify((manifest.lineage||[]).map(x=>x.problemId))],['problem_id']],['cbank_family_lineage','family_id IN (SELECT value FROM json_each(?))',[JSON.stringify((manifest.familyLineage||[]).map(x=>x.familyId))],['family_id']]];
  const batches=[];let stmts=[],bytes=0,writes=0,rows=0;const flush=()=>{if(!stmts.length)return;const file='batch-'+String(batches.length).padStart(5,'0')+'.json',text=JSON.stringify(stmts);writeFileSync(join(directory,file),text);batches.push({file,sha256:sha(text),bytes:Buffer.byteLength(text),statements:stmts.length,rows,estimatedWrites:writes+10,estimatedReads:rows*10+100});stmts=[];bytes=0;writes=0;rows=0;};
  const tableHashes=[];
@@ -83,7 +107,11 @@ export async function prepareDelta(manifestPath,baselinePath,directory){
  }
  const cells=[...topics,'all'].flatMap(category=>difficulties.map(difficulty=>{const input={category,difficulty,count:20};return {input,sha256:sha(canonical(input))};}));
  if(parentSources.length>1&&manifest.priorOperation?.kind!=='delta')throw Error('Composed release requires settled cumulative delta ledger');
- const planBody={format:'content-delta-v2',projectId:'appgprj_6ad91db3d4788191b3e73074e27447f5',priorBundleId:'ed08a3de9381d715d50f5a122a3eb23034d2b92dff2192be4aac198272e56f32',priorOperation:manifest.priorOperation||null,operationAllowance:manifest.operationAllowance||null,release:manifest.releaseId,parentRelease:manifest.parentRelease,parentSources,policy,newCount:manifest.approvedCount,before,batches,pages,tableHashes,cells,coverage:counts,families};
+ // Future epoch-protected plans bind explicit authority, fixed expected epochs
+ // and separately reviewed trigger/envelope costs. Never infer them from live
+ // control or retrofit historical receipts. Legacy exports remain unchanged.
+ const catalogWriter=manifest.catalogWriter===undefined?null:catalogWriterPlan(manifest.catalogWriter,batches.length);
+ const planBody={format:catalogWriter?'content-delta-v3':'content-delta-v2',...(catalogWriter?{catalogWriter}:{}),projectId:'appgprj_6ad91db3d4788191b3e73074e27447f5',priorBundleId:'ed08a3de9381d715d50f5a122a3eb23034d2b92dff2192be4aac198272e56f32',priorOperation:manifest.priorOperation||null,operationAllowance:manifest.operationAllowance||null,release:manifest.releaseId,parentRelease:manifest.parentRelease,parentSources,policy,newCount:manifest.approvedCount,...(archived.size?{inactiveHistory:{proofSHA256:manifest.inactivePredecessors.sha256,inserted:inactive.length,identitiesSHA256:sha(canonical(inactive))}}:{}),before,batches,pages,tableHashes,cells,coverage:counts,families};
  const plan={...planBody,bundleId:sha(canonical(planBody)),status:'prepared, not imported or activated',localDatabaseBytes:statSync(serving).size,compression};
  writeFileSync(join(directory,'plan.json'),JSON.stringify(plan,null,2)+'\n');
  // Local-only activation for offline sampling; exported release remains staging.

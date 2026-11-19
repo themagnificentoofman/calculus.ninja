@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import {afterSignIn} from '@/lib/study/practice-link.mjs';
 import { AccountCreatedError } from '@/lib/account-auth';
-import { motion } from 'motion/react';
 import { Calculator, ArrowRight, Mail, Lock, User, Github } from 'lucide-react';
 
 export default function AuthPage() {
@@ -15,7 +15,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   
   const { login, loginWithEmail, signupWithEmail } = useAuth();
-  const finishSignIn = () => window.location.assign(new URLSearchParams(window.location.search).get('next') === '/contact' ? '/contact' : '/');
+  const finishSignIn = () => window.location.assign(afterSignIn(new URLSearchParams(window.location.search).get('next')));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +60,7 @@ export default function AuthPage() {
 
   return (
     <main className="min-h-[calc(100dvh-4rem)] flex flex-col items-center justify-center p-4 dark:text-zinc-50 text-zinc-900 font-sans selection:bg-emerald-500/30">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="w-full max-w-md dark:bg-zinc-900/40 bg-white border dark:border-zinc-800/50 border-zinc-200 rounded-3xl p-5 sm:p-8 backdrop-blur-sm shadow-sm"
       >
         <h1 className="text-3xl font-bold mb-2 text-center">
@@ -175,7 +173,7 @@ export default function AuthPage() {
             {isLogin ? 'Sign up' : 'Sign in'}
           </button>
         </p>
-      </motion.div>
+      </div>
     </main>
   );
 }

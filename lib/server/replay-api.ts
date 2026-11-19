@@ -5,6 +5,8 @@ import {serverChunkPath} from './replay-recording.ts';
 import {readBoundedJson} from './questions-policy.mjs';
 import {recordExposures} from '../bank/exposure.ts';
 import {displayExposureTime} from '../replay/exposure-time.ts';
+import {rememberFirstDisplayTime} from '../replay/first-display-time.ts';
+import {observeReservedQuestions} from '../bank/issuance-reservations.mjs';
 const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 class ReplayError extends Error {status:number;constructor(message:string,status=400){super(message);this.status=status;}}
 const id=(s:unknown)=>{if(typeof s!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(s)||['constructor','prototype','__proto__'].includes(s))throw new ReplayError('Invalid replay reference.');return s;};
@@ -41,12 +43,12 @@ export function createReplayApi(deps:{store:Store;verify:(token:string)=>Promise
    if(input.op==='statuses'){
     if(!Array.isArray(input.roundIds)||input.roundIds.length>25)throw new ReplayError('At most 25 history statuses per request.');
     const statuses:Data={};
-    for(const value of input.roundIds){const round=id(value),g=await store.get(`games/${round}`);if(!g?.players?.includes(uid))throw new ReplayError('Replay access denied.',403);const summary=g.replayVersion===1?await store.get(capturePath(round,uid)):null;statuses[round]=replayStatus(g.replayVersion,terminal(g),summary,g.finishedAt??null,now(),expected(g,uid));}
+    for(const value of input.roundIds){const round=id(value),g=await store.get(`games/${round}`);if(!g?.players?.includes(uid))throw new ReplayError('Replay access denied.',403);const summary=(g.replayVersion===1||g.replayVersion===2)?await store.get(capturePath(round,uid)):null;statuses[round]=replayStatus(g.replayVersion,terminal(g),summary,g.finishedAt??null,now(),expected(g,uid));}
     return reply({statuses});
    }
    const round=id(input.roundId),game=await store.get(`games/${round}`);
    if(!game?.players?.includes(uid))throw new ReplayError('Replay access denied.',403);
-   if(game.replayVersion!==1)return reply({replayStatus:'Legacy',message:legacyMessage,summary:{mode:game.mode,status:game.status,createdAt:game.createdAt,scores:game.scores,category:game.category,difficulty:game.difficulty}});
+   if(game.replayVersion!==1&&game.replayVersion!==2)return reply({replayStatus:'Legacy',message:legacyMessage,summary:{mode:game.mode,status:game.status,createdAt:game.createdAt,scores:game.scores,category:game.category,difficulty:game.difficulty}});
    if(input.op==='open'){
     const segmentId=id(input.segmentId),receivedAt=now();
     return reply(await store.transaction(async tx=>{
@@ -76,46 +78,58 @@ export function createReplayApi(deps:{store:Store;verify:(token:string)=>Promise
       const privateGame=displayed.length?await tx.get(`gameSecrets/${round}`):null;
       const recent=privateGame?await tx.get(`bankRecent/${uid}`)||{}:null;
       if(privateGame&&displayed.some(e=>!privateGame.questions?.[e.questionIndex!]))throw new ReplayError('Invalid displayed question.');
+      const priorDisplays=summary.observed?.question_displayed||[];
       summary.observed ||= {};for(const event of events)if(event.questionIndex!==undefined){const seen=summary.observed[event.type]||[];if(!seen.includes(event.questionIndex))summary.observed[event.type]=[...seen,event.questionIndex];}
       segment.clientAnchorMs=input.anchorMs;segment.uncertaintyMs=input.uncertaintyMs;segment.nextChunk++;segment.nextSequence+=events.length;segment.events+=events.length;segment.closed=input.closed;segment.lastMono=events.at(-1)!.monotonicMs;segment.gap ||= segment.clockUncertain||events.some(e=>e.type==='capture_gap');summary.failed ||= segment.gap;summary.events+=events.length;
-      tx.set(clientPath(round,uid,segmentId,chunkIndex),{roundId:round,playerId:uid,segmentId,chunkIndex,hash:digest,receivedAt,events});tx.set(capturePath(round,uid),summary);
       if(privateGame&&recent){
        let history=recent;
        for(const event of displayed){
-        const at=displayExposureTime(segment,event,input.anchorMs,input.uncertaintyMs,privateGame,receivedAt);
-        if(at!==null)history=recordExposures(history,round,[privateGame.questions[event.questionIndex!]],'displayed',at,receivedAt);
+        const aligned=displayExposureTime(segment,event,input.anchorMs,input.uncertaintyMs,privateGame,receivedAt);
+        if(aligned!==null){
+         const created=privateGame.createdAt instanceof Date?privateGame.createdAt.getTime():typeof privateGame.createdAt==='number'?privateGame.createdAt:Date.parse(String(privateGame.createdAt));
+         const at=rememberFirstDisplayTime(summary,event.questionIndex!,aligned,created,priorDisplays.includes(event.questionIndex),receivedAt);
+         const question=privateGame.questions[event.questionIndex!];
+         history=recordExposures(history,round,[question],'displayed',at,receivedAt);
+         if(question.problemId&&question.familyId){
+          history={...history,...observeReservedQuestions(history,round,[question],'displayed',at,receivedAt)};
+          // A delayed/repeated display must not restore a redundant hold after
+          // this same question has actually transferred to retained attempts.
+          if(history.exposures?.some((e:Data)=>e.roundId===round&&e.problemId===question.problemId&&e.stage==='attempted'))history={...history,...observeReservedQuestions(history,round,[question],'attempted',receivedAt,receivedAt,history.exposures)};
+         }
+        }
        }
        tx.set(`bankRecent/${uid}`,history);
       }
+      tx.set(clientPath(round,uid,segmentId,chunkIndex),{roundId:round,playerId:uid,segmentId,chunkIndex,hash:digest,receivedAt,events});tx.set(capturePath(round,uid),summary);
       return {acknowledged:true,nextChunk:segment.nextChunk,nextSequence:segment.nextSequence};
     }));
    }
    // Every content/chunk endpoint repeats the match-level gate, including an early finisher.
    if(!terminal(game))return reply({replayStatus:'Recording',locked:true,message:'Replay and analysis unlock after the entire match ends.'},409);
    const manifest=await store.get(`replayManifests/${round}`),capture=await store.get(capturePath(round,uid));
-   if(!manifest)return reply({replayStatus:'Unavailable',message:'Replay metadata is unavailable.'});
-   const status=replayStatus(1,true,capture,manifest.settledAt,now(),expected(game,uid));
+   if(!manifest)return reply({replayStatus:'Unavailable',message:'The saved replay is unavailable.'});
+   const status=replayStatus(game.replayVersion,true,capture,manifest.settledAt,now(),expected(game,uid));
    if(input.op==='read'){
-    const content=await store.get(`replayContent/${round}`);if(!content)return reply({replayStatus:'Unavailable',message:'The immutable replay snapshot is unavailable.'});
-    const gaps:string[]=[];if(!capture?.segments?.length)gaps.push('Client presentation was not synchronized.');
-    if(capture?.failed)gaps.push('Capture reported missing or rejected local events.');
-    if(capture?.segments?.some((s:Data)=>!s.closed))gaps.push('One or more page sessions have no durable closing event.');
-    if(status==='Partial'&&!gaps.length)gaps.push('Some accepted answers are missing captured exposure, submission, response, or feedback events.');
-    if(content.contextMissing)gaps.push('Some problem context was absent from the captured snapshot.');
+    const content=await store.get(`replayContent/${round}`);if(!content)return reply({replayStatus:'Unavailable',message:'The saved replay is unavailable.'});
+    const gaps:string[]=[];if(!capture?.segments?.length)gaps.push('The recording from your device has not synchronized.');
+    if(capture?.failed)gaps.push('Some activity from your device could not be recorded.');
+    if(capture?.segments?.some((s:Data)=>!s.closed))gaps.push('The end of a visit was not recorded.');
+    if(status==='Partial'&&!gaps.length)gaps.push('Some saved answers are missing parts of the on-screen recording.');
+    if(content.contextMissing)gaps.push('Some question details are missing from this recording.');
     return reply({replayStatus:content.contextMissing?'Partial':status,manifest,content,solutionReviews:savedSolutionReviews(content.questions),playerId:uid,segments:capture?.segments||[],gaps});
    }
    if(input.op==='server'){
-    const start=input.start;if(!Number.isInteger(start)||start<0||start>manifest.chunkCount)throw new ReplayError('Invalid replay cursor.');
+    const start=input.start;if(!Number.isInteger(start)||start<0||start>manifest.chunkCount)throw new ReplayError('The replay could not finish loading. Please retry.');
     const chunks=[],missing=[];
     for(let n=start;n<Math.min(start+REPLAY_LIMITS.readChunks,manifest.chunkCount);n++){
       const c=await store.get(serverChunkPath(round,n));if(!c){missing.push(n);continue;}
       // Opponent selections, verdict details, request IDs and client traces are private.
-      c.events=c.events.filter((e:ReplayEvent)=>!['answer_accepted','answer_rejected'].includes(e.type)||e.playerId===uid).map((e:ReplayEvent)=>e.playerId===uid?e:{...e,requestId:undefined});chunks.push(c);
+      c.events=c.events.filter((e:ReplayEvent)=>!['answer_accepted','answer_rejected','answer_finalized','answer_ungraded'].includes(e.type)||e.playerId===uid).map((e:ReplayEvent)=>e.playerId===uid?e:{...e,requestId:undefined});chunks.push(c);
     }
     return reply({chunks,missing,next:Math.min(start+REPLAY_LIMITS.readChunks,manifest.chunkCount),done:start+REPLAY_LIMITS.readChunks>=manifest.chunkCount});
    }
-   const segmentId=id(input.segmentId),segment=capture?.segments.find((s:Data)=>s.id===segmentId);if(!segment)throw new ReplayError('Capture segment unavailable.',404);
-   const start=input.start;if(!Number.isInteger(start)||start<0||start>segment.nextChunk)throw new ReplayError('Invalid replay cursor.');
+   const segmentId=id(input.segmentId),segment=capture?.segments.find((s:Data)=>s.id===segmentId);if(!segment)throw new ReplayError('Part of this replay is unavailable. Please retry.',404);
+   const start=input.start;if(!Number.isInteger(start)||start<0||start>segment.nextChunk)throw new ReplayError('The replay could not finish loading. Please retry.');
    const events:ReplayEvent[]=[],missing=[];
    for(let n=start;n<Math.min(start+REPLAY_LIMITS.readChunks,segment.nextChunk);n++){
     const c=await store.get(clientPath(round,uid,segmentId,n));if(!c){missing.push(n);continue;}

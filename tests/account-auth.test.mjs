@@ -33,7 +33,7 @@ test('Google linking requires sign-in and never substitutes another account on a
 });
 
 const emulator = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-test('email signup, profile recovery, and Google linking retain the same account', { skip: emulator !== '127.0.0.1:9099' }, async t => {
+test('email signup, profile recovery, and Google linking retain the same account', { skip: !/^127\.0\.0\.1:\d+$/.test(emulator || '') }, async t => {
   const apps = [];
   const session = () => {
     const app = initializeApp({ projectId: 'demo-calculus-rendering', apiKey: 'emulator-only' }, `auth-${crypto.randomUUID()}`);

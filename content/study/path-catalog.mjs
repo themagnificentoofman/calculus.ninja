@@ -1,0 +1,17 @@
+import {lowerTierPaths} from './lower-tier-paths.mjs';
+import {advancedTierPaths} from './advanced-tier-paths.mjs';
+import {elementaryPaths} from './elementary-paths.mjs';
+import {specialIntegralPaths} from './special-integral-paths.mjs';
+import {seriesExtensionPaths} from './series-extension-paths.mjs';
+import {divisionPaths} from './division-paths.mjs';
+import {odeContinuationPaths} from './ode-continuation-paths.mjs';
+import {odeMethodPaths} from './ode-methods-paths.mjs';
+import {multivariableExtensionPaths} from './multivariable-extension-paths.mjs';
+import {limitsPaths} from './limits-paths.mjs';
+import {seriesPaths} from './series-paths.mjs';
+import {foundationPaths} from './foundation-paths.mjs';
+import {corePaths} from './core-paths.mjs';
+import {multivariablePaths} from './multivariable-paths.mjs';
+import {applicationPaths} from './application-paths.mjs';
+export const studyPaths=[...lowerTierPaths,...advancedTierPaths,...elementaryPaths,...strategyPaths,...specialIntegralPaths,...seriesExtensionPaths,...divisionPaths,...odeContinuationPaths,...foundationPaths.map(path=>({...path,kind:'foundation'})),...corePaths,...multivariablePaths,...seriesPaths,...limitsPaths,...applicationPaths,...odeMethodPaths,...multivariableExtensionPaths];
+import {strategyPaths} from './strategy-paths.mjs';

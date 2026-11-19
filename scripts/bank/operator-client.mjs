@@ -2,8 +2,9 @@ import {readFileSync,writeFileSync,appendFileSync,existsSync,mkdirSync,rmSync,re
 import {createHash,sign,randomUUID} from 'node:crypto';
 import {join,resolve} from 'node:path';
 import {runImport,loadPlan} from './compact-import.mjs';
-const [mode,keyPath,importDirectory,stateDirectory]=process.argv.slice(2);
-if(!['init','import','verify','activate','status','qa'].includes(mode))throw Error('Use init|import|verify|activate|status|qa');
+const [mode,keyPath,importDirectory,stateDirectory,qaBank,qaRelease]=process.argv.slice(2);
+if(!['init','import','verify','activate','status','qa','qa-v2'].includes(mode))throw Error('Use init|import|verify|activate|status|qa|qa-v2');
+if(mode==='qa-v2' && (!qaBank || !qaRelease))throw Error('qa-v2 requires the local source bank path and expected release after the state directory');
 const dir=resolve(stateDirectory);mkdirSync(dir,{recursive:true,mode:0o700});
 const lock=join(dir,'client.lock');
 if(existsSync(lock)){
@@ -75,6 +76,11 @@ try{
     for(let page=current.membershipPages;page<261;page++){current=await call({op:'memberships',page});if(page%25===0)await health();}
     if(!current.metadataVerified)current=await call({op:'metadata'});
     for(let cell=current.selectionCells;cell<24;cell++)current=await call({op:'selection',cell});
+  }
+  if(mode==='qa-v2'){
+    const {verifyNamespacedGameplay}=await import('./operator-gameplay.mjs');
+    state.gameplayV2Result=await verifyNamespacedGameplay(call,progress=>{state.gameplayV2=progress;save();},state.gameplayV2,{bankPath:qaBank,release:qaRelease});
+    current=state.last;
   }
   if(mode==='activate')current=await call({op:'activate'});
   if(mode==='qa'){

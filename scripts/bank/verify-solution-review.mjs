@@ -4,6 +4,8 @@
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
+import {checkSourcePresentation} from './solution-review/public-source-presentation.mjs';
+const milestone4=checkSourcePresentation();
 const manifest=JSON.parse(readFileSync('docs/bank/solution-quality/review-manifest.json'));
 const amendment=JSON.parse(readFileSync('docs/bank/problem-quality/presentation-review-manifest.json'));
 const finalAmendment=JSON.parse(readFileSync('docs/bank/problem-quality/presentation-final-review-amendment.json'));
@@ -18,12 +20,16 @@ assert.equal(fileHash(amendment.baselineManifest),amendment.baselineManifestSha2
 for(const [path,expected]of Object.entries(manifest.files)){
  const updated=amendment.overrides[path];
  if(updated){assert.equal(updated.priorSha256,expected);assert.ok(updated.reviewedChange);}
- assert.equal(fileHash(path),updated?.sha256||expected,'Review binding changed: '+path);
+ const previous=updated?.sha256||expected,successor=milestone4[path];
+ if(successor)assert.equal(successor.priorSha256,previous,'Unrelated historical presentation: '+path);
+ assert.equal(fileHash(path),successor?.sha256||previous,'Review binding changed: '+path);
 }
 for(const [path,expected]of Object.entries(amendment.evidenceFiles)){
  const updated=finalAmendment.overrides[path];
  if(updated){assert.equal(updated.priorSha256,expected);assert.ok(updated.reviewedChange);assert.ok(updated.evidencePaths.length);for(const evidence of updated.evidencePaths)assert.ok(finalAmendment.evidenceFiles[evidence]);}
- assert.equal(fileHash(path),updated?.sha256||expected,'Presentation review evidence changed: '+path);
+ const previous=updated?.sha256||expected,successor=milestone4[path];
+ if(successor)assert.equal(successor.priorSha256,previous,'Unrelated historical evidence: '+path);
+ assert.equal(fileHash(path),successor?.sha256||previous,'Presentation review evidence changed: '+path);
 }
 for(const path of Object.keys(finalAmendment.overrides))assert.ok(amendment.evidenceFiles[path],'Amend only explicitly bound prior evidence');
 const finite=JSON.parse(readFileSync('lib/server/solution-reviews/finite.json'));
