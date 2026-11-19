@@ -2,7 +2,7 @@
   "version": "study-dashboard-presentation-1",
   "scope": "Dashboard navigation and browser-local learner marks, visits, activity and counts. Lesson statements, exercises, worked solutions, release eligibility and grades remain bound to their existing independent reviews.",
   "predecessor": "46d69193af7ed97dced057895a23959641bdf61753aabed4718c0138f8f7f3fa",
-  "successor": "61a4986615fbd3676a81698591cf00dd67dd90fc5a4b323c0dd0e65584930bbb",
+  "successor": "ab5165fdaeca81a6316dfd0f8a3049b5c81e63242f1e417711ed9d172a9e575d",
   "changes": {
     "components/study/StudyLibrary.tsx": {
       "before": "c889e40be24cdd70feab0cdb22b30c92492987600b8e06d1cdb02e3d3732dba5",
@@ -22,7 +22,7 @@
     }
   },
   "additions": {
-    "components/study/StudyDashboard.tsx": "92bbf71166bcb27d24a5e9fb74de02818c477d4ccf26cc506dfc872b58c5864e",
+    "components/study/StudyDashboard.tsx": "1a672c288ced9bb2c1d9a1b9add51b6ae25ec382587845f842f49e371fd3609b",
     "components/study/StudyVisit.tsx": "a48040a942da137f799d1b8819a18fece20fcd879c726f61b195ef14ef576e13",
     "lib/study/dashboard.mjs": "bc0783cdeed3b69dbf8fd17f9e41dc09779ecda222077b62e115f8b840d8a3e8"
   }

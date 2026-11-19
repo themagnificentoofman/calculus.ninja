@@ -36,6 +36,7 @@ function ProgressBar({title,entries,statuses}:{title:string;entries:StudySearchE
 const dayFormat=new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 const formatDay=(date:Date)=>dayFormat.format(date);
 const calendarMonth=(date:Date)=>date.toLocaleDateString(undefined,{month:'short'});
+const countLabel=(count:number,noun:string)=>count+' '+noun+(count===1?'':'s');
 type DashboardData=ReturnType<typeof studyDashboard>;
 
 function Activity({days}:{days:DashboardData['days']}){
@@ -72,7 +73,7 @@ function Activity({days}:{days:DashboardData['days']}){
    <input type="date" min={days[0]?.key} max={days.at(-1)?.key} value={day.key} onChange={event=>{if(event.target.value)setSelected(event.target.value);}}
     className="min-h-11 rounded-lg border border-zinc-700 bg-zinc-950 px-2 text-zinc-100 [color-scheme:dark]"/>
   </label>}
-  {day&&<p aria-live="polite" className="mt-4 text-sm text-zinc-300"><strong className="text-zinc-100">{formatDay(day.date)}</strong><br/>{day.opened} modules opened · {day.practiced} marked practicing or complete · {day.solved} exercises marked solved</p>}
+  {day&&<p aria-live="polite" className="mt-4 text-sm text-zinc-300"><strong className="text-zinc-100">{formatDay(day.date)}</strong><br/>{countLabel(day.opened,'module')} opened · {day.practiced} marked practicing or complete · {countLabel(day.solved,'exercise')} marked solved</p>}
  </section>;
 }
 
