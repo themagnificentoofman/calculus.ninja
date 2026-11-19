@@ -2,9 +2,10 @@
 'use client';
 
 import {useMemo, useState} from 'react';
-import {ArrowRight, BookOpen, FileText, PencilLine, Search} from 'lucide-react';
+import {BookOpen, FileText, PencilLine, Search} from 'lucide-react';
 import type {StudySearchEntry,PublicStudyPath,PublicStudyTier} from '@/lib/study/contracts';
 import {syllabusQuery,withSyllabus,studySyllabusState} from '@/lib/study/syllabus.mjs';
+import {StudyDashboard} from './StudyDashboard';
 import {StudyMark,StudyMarkLegend,StudyRecommendation} from './StudyMark';
 
 type Props={lessons:StudySearchEntry[];paths?:PublicStudyPath[];tiers?:PublicStudyTier[];initialSearch?:string;restoreResult?:string};
@@ -62,13 +63,13 @@ export function StudyLibrary({lessons,paths=[],tiers=[],initialSearch='',restore
   return labels;
  },[tiers]);
  const topics=new Map(tiers.flatMap(t=>t.topics.map(topic=>[topic.id,topic.title] as const)));
- const base=paths.find(p=>p.kind==='foundation')??paths.find(p=>p.kind==='core')??lessons.find(l=>l.kind==='module');
  const anchorAt=restoreResult?results.findIndex(e=>e.resultAnchor===restoreResult):-1;
  const shown=results.slice(0,Math.max(limit,anchorAt+1));
  return <main className="mx-auto max-w-5xl px-4 py-10 text-zinc-100 sm:px-6 sm:py-14">
   <header className="max-w-3xl"><h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Study Guide</h1>
   <p className="mt-4 leading-relaxed text-zinc-400">Explore calculus by topic, follow a pathway, or look up a specific reading or exercise.</p>
-  {base&&<a href={base.href} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-400 px-4 py-2 font-semibold text-zinc-950">Start here <ArrowRight size={17} aria-hidden="true"/></a>}</header>
+  </header>
+  <StudyDashboard entries={lessons} tiers={tiers}/>
   <nav aria-label="Study Guide" className="my-7 flex flex-wrap gap-x-5 gap-y-3 text-sm">{paths.length>0&&<a className={linkClass} href="#pathways">Pathways and roadmaps</a>}<a className={linkClass} href="#syllabus">Search the syllabus</a>{tiers.length>0&&<a className={linkClass} href="#difficulty-guides">Difficulty guides</a>}</nav>
   <section id="syllabus" className="scroll-mt-20 border-y border-zinc-800 py-7" aria-labelledby="syllabus-heading"><h2 id="syllabus-heading" className="mb-4 text-2xl font-semibold">Search the syllabus</h2>
    <div className="flex flex-wrap gap-3"><label className="flex min-w-48 flex-1 flex-col gap-1 text-sm"><span className="flex items-center gap-1"><Search size={15} aria-hidden="true"/>Search</span><input type="search" className={fieldClass} value={filters.q} onChange={e=>change('q',e.target.value)} placeholder="Topic, module, reading, or exercise"/></label>

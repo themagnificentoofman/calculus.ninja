@@ -4,6 +4,7 @@
 import {useCallback, useContext, useState, useSyncExternalStore} from 'react';
 import {BookOpen, Circle, Star, CheckCircle2, PencilLine} from 'lucide-react';
 import {StudyLearnerContext} from '@/lib/study/learner-context';
+import {dashboardChange,trackStudyMark} from '@/lib/study/dashboard.mjs';
 import {studyMarkKey, studyStatuses, readStudyMark, writeStudyMark} from '@/lib/study/marks.mjs';
 
 type Kind = 'module' | 'reading' | 'exercise';
@@ -53,7 +54,12 @@ export function StudyMark({kind, resource, title}: {kind: Kind; resource:string;
         onChange={event => {
           let saved = false;
           try { saved = writeStudyMark(window.localStorage, key, kind, event.target.value); } catch {}
-          if (saved) { setFailedKey(null); notify(key); } else setFailedKey(key);
+          if (saved) {
+            try { trackStudyMark(window.localStorage, uid, kind, resource, value, event.target.value); } catch {}
+            setFailedKey(null);
+            notify(key);
+            window.dispatchEvent(new Event(dashboardChange));
+          } else setFailedKey(key);
         }}>
         {studyStatuses[kind].map((state: string) => <option key={state}>{state}</option>)}
       </select>

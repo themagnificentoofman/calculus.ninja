@@ -36,7 +36,30 @@ export const STUDY_PRESENTATION_FILES = [
  'lib/server/study-practice-availability.mjs', 'lib/server/study-practice-activation.json','lib/server/round-creation-policy.json',
  'app/play/test/page.tsx', 'app/globals.css', 'package.json', 'package-lock.json', 'tsconfig.json',
 ];
-export const currentStudyPresentationHash=()=>sha(canonical(Object.fromEntries(STUDY_PRESENTATION_FILES.map(path=>[path,sha(readFileSync(resolve(root,path)))]))));
+export const studyPresentationSources=()=>Object.fromEntries(STUDY_PRESENTATION_FILES.map(path=>[path,sha(readFileSync(resolve(root,path)))]));
+export const currentStudyPresentationHash=()=>sha(canonical(studyPresentationSources()));
+
+const dashboardSources=[
+ 'components/study/StudyDashboard.tsx','components/study/StudyVisit.tsx','lib/study/dashboard.mjs',
+];
+
+function studyDashboardPresentation(amendment, sources=studyPresentationSources()){
+ assert(amendment?.version==='study-dashboard-presentation-1','Invalid dashboard presentation review');
+ const scope=['components/study/StudyLibrary.tsx','components/study/StudyLessonReader.tsx','components/study/StudyMark.tsx','lib/study/marks.mjs'];
+ const baseline={...sources};
+ for(const path of scope){
+  const evidence=amendment.changes?.[path];
+  assert(evidence&&isHash(evidence.before)&&sources[path]===evidence.after,'Study dashboard source changed: '+path);
+  baseline[path]=evidence.before;
+ }
+ assert(Object.keys(amendment.changes).length===scope.length,'Unexpected Study dashboard change');
+ const additions=Object.fromEntries(dashboardSources.map(path=>[path,sha(readFileSync(resolve(root,path)))]));
+ assert(canonical(additions)===canonical(amendment.additions),'Unreviewed Study dashboard dependency');
+ const predecessor=sha(canonical(baseline));
+ assert(predecessor===amendment.predecessor&&predecessor===registry.presentationHash,'Non-dashboard Study presentation changed');
+ assert(sha(canonical({...sources,...additions}))===amendment.successor,'Unreviewed Study dashboard presentation');
+ return predecessor;
+}
 export function studyInventoryFile(path){
  return ()=>{
   const limit=64*1024*1024,fd=openSync(path,constants.O_RDONLY|constants.O_NONBLOCK);
@@ -120,6 +143,9 @@ export async function verifyStudyAdmissions({catalog=defaultCatalog(),admissions
 
 export function studyEvidenceEnvironment(){
  const directory=process.env.CALCULUS_STUDY_EVIDENCE_DIR,inventory=process.env.CALCULUS_STUDY_BANK_INVENTORY;
- return {...(directory?{readEvidence:evidenceDirectory(directory)}:{}),...(inventory?{readInventory:studyInventoryFile(inventory)}:{})};
+ const scoped=registry.presentationHash!==currentStudyPresentationHash()&&Object.keys(registry.documents??{}).length>0;
+ const presentationHash=scoped ? studyDashboardPresentation(JSON.parse(readFileSync(
+  resolve(root,'docs/milestone4/study-dashboard-presentation-review.json'),'utf8'))) : undefined;
+ return {...(presentationHash?{presentationHash}:{}),...(directory?{readEvidence:evidenceDirectory(directory)}:{}),...(inventory?{readInventory:studyInventoryFile(inventory)}:{})};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))console.log(JSON.stringify(await verifyStudyAdmissions({...studyEvidenceEnvironment(),requireComplete:process.argv.includes('--release')}),null,2));

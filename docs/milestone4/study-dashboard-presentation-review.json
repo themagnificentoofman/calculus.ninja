@@ -1,0 +1,29 @@
+{
+  "version": "study-dashboard-presentation-1",
+  "scope": "Dashboard navigation and browser-local learner marks, visits, activity and counts. Lesson statements, exercises, worked solutions, release eligibility and grades remain bound to their existing independent reviews.",
+  "predecessor": "46d69193af7ed97dced057895a23959641bdf61753aabed4718c0138f8f7f3fa",
+  "successor": "61a4986615fbd3676a81698591cf00dd67dd90fc5a4b323c0dd0e65584930bbb",
+  "changes": {
+    "components/study/StudyLibrary.tsx": {
+      "before": "c889e40be24cdd70feab0cdb22b30c92492987600b8e06d1cdb02e3d3732dba5",
+      "after": "88d1aa6b40ef65e5a9e8f0d1b9cf54b91ac69b993a037498c9384141c6edc7ab"
+    },
+    "components/study/StudyLessonReader.tsx": {
+      "before": "0e2eda38304fc0a6cc38788045f76461cd5b8badd412fae1f6a7b69fa0737f10",
+      "after": "61c2d16aa2608172234697cd5588b59ef242d0b780c517ac53d4272e113d023a"
+    },
+    "components/study/StudyMark.tsx": {
+      "before": "6235854bebbb1933e374e29f2c62a845c79381563dfa3b4702469027dcdcf9cc",
+      "after": "9972604eda6cbeba73121500360e52f30feed9462fe9469bd72980e604149bc2"
+    },
+    "lib/study/marks.mjs": {
+      "before": "e8becf2db8288b3a844a4554b2603e4738824d76efc9b9e2d9af782c5f860411",
+      "after": "034cfe5e07576540e4a6b3ab0e0ea4e6731bb5b5bb197934d86bcb527ebeb59e"
+    }
+  },
+  "additions": {
+    "components/study/StudyDashboard.tsx": "92bbf71166bcb27d24a5e9fb74de02818c477d4ccf26cc506dfc872b58c5864e",
+    "components/study/StudyVisit.tsx": "a48040a942da137f799d1b8819a18fece20fcd879c726f61b195ef14ef576e13",
+    "lib/study/dashboard.mjs": "bc0783cdeed3b69dbf8fd17f9e41dc09779ecda222077b62e115f8b840d8a3e8"
+  }
+}

@@ -5,10 +5,14 @@ import { firestoreStore, serviceAccountToken, StoreError } from '@/lib/server/fi
 import { createServerGames } from '@/lib/server/game-engine';
 import { isolatedQaStore, QA_UIDS } from '@/lib/server/operator-qa';
 import { consumeMutationQuota } from '@/lib/server/quota';
+import {withdrawReleaseFixtures} from '@/lib/server/qa-public-profile';
 import { createGameApi } from '@/lib/server/game-api';
 export const dynamic = 'force-dynamic';
 export const POST = async (request: Request) => {
-  const authorized = await authorizeRuntimeQa(request, env.RUNTIME_QA_PUBLIC_KEY, env.RUNTIME_QA_EXPIRES_AT);
+  const retire = request.headers.get('x-qa-operation') === 'withdraw-release-fixtures';
+  const authorized = await authorizeRuntimeQa(request, retire ? env.QA_WITHDRAWAL_PUBLIC_KEY : env.RUNTIME_QA_PUBLIC_KEY,
+    retire ? env.QA_WITHDRAWAL_EXPIRES_AT : env.RUNTIME_QA_EXPIRES_AT,
+    retire ? '{"action":"withdraw-release-fixtures"}' : '{}');
   if (authorized !== 200) return Response.json({ error: 'Unavailable' }, { status: authorized });
   const results: Record<string, unknown> = {};
   const check = async (name: string, action: () => Promise<unknown>) => {
@@ -20,6 +24,14 @@ export const POST = async (request: Request) => {
     }
   };
   const base = firestoreStore(config.projectId, config.firestoreDatabaseId, () => serviceAccountToken(env.FIREBASE_SERVICE_ACCOUNT_JSON!, config.projectId));
+  if (retire) {
+    try {
+      const result = await withdrawReleaseFixtures(base);
+      return Response.json(result, { status: result.remaining ? 503 : 200, headers: { 'Cache-Control': 'no-store' } });
+    } catch {
+      return Response.json({ error: 'Cleanup could not be verified.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+    }
+  }
   const store = isolatedQaStore(base), uid = QA_UIDS[0];
   await check('quota', () => consumeMutationQuota(env.DB!, uid));
   await check('firestoreStatus', async () => {

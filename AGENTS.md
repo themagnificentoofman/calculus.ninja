@@ -36,3 +36,9 @@
 - From any Study page, make the current location, next useful action and route back to the syllabus easy to find. Offer a searchable index and visible navigation on both wide and narrow screens. Verify these journeys from the hub and from a direct link.
 - Use consistent, text-labeled markings for module progress, problem progress and reading progress. Distinguish learner-set marks from verified grades, difficulty and editorial recommendations. Give each mark an accessible name and a visual cue that works without color or hover. Changing a study mark never grants credit, XP, rating or mastery.
 - Base editorial marks on an explicit curriculum judgment or documented evidence. Use external guides as design references. Check applicable reuse terms and record attribution and modifications for any material incorporated.
+
+## Production QA data
+
+- Run test users and fixtures in isolated emulators or the namespaced runtime QA store. Use a reserved fixture identity when a hosted end-to-end check needs the real sign-in provider. Keep its public player profile out of discovery and ranking on every write path.
+- Before closing a production release, verify the actual leaderboard and player search for the hosted fixture identities used in that release. Bind any correction to verified account identities and fixture provenance. Display names alone do not identify fixtures. Withdraw only the public projection when private history is needed for audit, then verify absence and that temporary operator access is disabled.
+- When extending the Study dashboard, preserve existing account-scoped browser marks and module URLs. Count only actual visits and explicit mark changes in the activity calendar. Keep self-reported marks separate from grades and rewards.
