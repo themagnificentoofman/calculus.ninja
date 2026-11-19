@@ -199,7 +199,12 @@ def verify_artifact(path):
     for line in path.open():
         p=json.loads(line);family=p.get('familyId')
         if p.get('schemaVersion')==2:
-            from content_pipeline import verify
+            if p.get('templateVersion')=='reviewed-quality-constructions-v1':
+                from quality.contract import verify
+            elif p.get('templateVersion')=='reviewed-fr-menus-v1':
+                from quality.fr_menu import verify
+            else:
+                from content_pipeline import verify
             verify(p)
             if p['semanticHash'] in seen:raise ValueError('Duplicate normalized content')
             seen.add(p['semanticHash']);count+=1

@@ -1,0 +1,9 @@
+# User amendment: configurable MCQ and FRQ counts
+
+The user's later request supersedes the original specification's single-format Test round restriction. Individual Test setup must accept separate nonnegative MCQ/FRQ counts totaling 1–20, and exactly three ordering choices: MCQs first, FRQs first, uniformly shuffled. Defaults remain five MCQs, zero FRQs. Topic and difficulty remain common to the entire round. Setting either count to zero is valid; both zero and totals above 20 are invalid.
+
+Uniform means a uniform permutation of the actual complete question list, using unbiased integer sampling and Fisher–Yates. It does not mean a fixed alternation, a coin flip that changes the requested counts, or a constrained permutation presented as uniform. Thus this explicit ordering choice can place questions from the same construction next to each other; the earlier adjacency ordering gate remains for ordinary constrained selector horizons, not for a user-requested unconstrained shuffle. Exact/equivalent uniqueness, history, difficulty, source eligibility and the cap of two per construction across the entire mixed round remain required.
+
+Availability must qualify the actual combined request. Independently drawing each format and concatenating can duplicate an exposure lineage or violate the shared construction cap, and a collision does not prove exhaustion. Mixed requests need a joint eligible selector and reserved finite capacities. Until it is connected and reviewed, fail with explicit unavailability; never silently replace a requested question type.
+
+Save the counts, ordering choice and final immutable question order. Grade each question by its recorded format. Maintain separate MCQ and FRQ results and account statistics regardless of which type ends the round. Refresh and replay retain the original order and response contracts. Rapid, PvP and Multiplayer remain MCQ-only.

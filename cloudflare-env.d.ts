@@ -4,6 +4,10 @@ declare namespace Cloudflare {
     BUCKET?: R2Bucket;
     OPENAI_API_KEY?: string;
     FIREBASE_SERVICE_ACCOUNT_JSON?: string;
+    RATING_REPAIR_PUBLIC_KEY?: string;
+    RATING_REPAIR_EXPIRES_AT?: string;
+    RUNTIME_QA_PUBLIC_KEY?: string;
+    RUNTIME_QA_EXPIRES_AT?: string;
     OPENAI_MODEL?: string;
     RESEND_API_KEY?: string;
     CONTACT_FROM_EMAIL?: string;

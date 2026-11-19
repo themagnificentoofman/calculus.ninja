@@ -1,12 +1,12 @@
 'use client';
 
 import { useAuth } from '@/components/AuthProvider';
-import { motion } from 'motion/react';
 import { Calculator, Play, Trophy, Users, Zap, ArrowRight, Activity, Target, Brain, Swords, HelpCircle, Star, Settings } from 'lucide-react';
 import { RankIcon, getRankInfo } from '@/components/RankDisplay';
 import { getXpProgress, getLevelFromXp, hasRating } from '@/lib/progression';
 
 import { GameHistory } from '@/components/GameHistory';
+import { FreeResponseStats } from '@/components/FreeResponseStats';
 import { WelcomeNetwork } from '@/components/WelcomeNetwork';
 
 export default function Home() {
@@ -27,9 +27,7 @@ export default function Home() {
       <WelcomeNetwork />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {!user ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="text-center max-w-4xl mx-auto mt-16 sm:mt-24"
           >
             <h1 className="text-5xl sm:text-7xl font-bold tracking-tighter mb-8 leading-tight">
@@ -39,7 +37,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              A competitive calculus trainer featuring real-time multiplayer, ratings, and step-by-step LaTeX explanations powered by AI.
+              A competitive calculus trainer featuring real-time multiplayer, ratings, reviewed problems, and worked mathematical explanations.
             </p>
             <a
               href="/auth"
@@ -49,11 +47,9 @@ export default function Home() {
                 Start Grinding <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </a>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <div
             className="grid grid-cols-1 xl:grid-cols-12 gap-8"
           >
             {/* Profile Sidebar */}
@@ -114,7 +110,7 @@ export default function Home() {
               </div>
 
               <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-6 backdrop-blur-sm">
-                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4">Topic Mastery</h3>
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4">Topic progress</h3>
                 <div className="space-y-4">
                   {['integration', 'differentiation', 'limits', 'series', 'differential equations', 'multivariable'].map(topic => {
                     const topicXp = profile?.topicXp?.[topic] || 0;
@@ -144,6 +140,7 @@ export default function Home() {
                 </div>
               </div>
 
+              <FreeResponseStats stats={profile?.freeResponseStats}/>
               <GameHistory />
             </div>
 
@@ -191,7 +188,7 @@ export default function Home() {
                 />
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
     </main>

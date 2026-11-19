@@ -89,3 +89,80 @@ test('email adapter fixes recipient, uses account reply-to, sends plain text and
   assert.ok(calls[0].body.text.includes(input.message));assert.equal(calls[0].headers['Idempotency-Key'],calls[1].headers['Idempotency-Key']);
   await assert.rejects(resendContactSender('test','sender',async()=>Response.json({error:'private'},{status:429}))(input),/unavailable/);
 });
+
+test('contextual report categories bind only the saved reference or entered lesson and section', async () => {
+  const deliveries = [];
+  const id = 'cn_0123456789abcdef0123';
+  const accepted = [
+    {topic:'problem', problemId:id, problemRevision:3},
+    {topic:'problem', problemId:id},
+    {topic:'problem'},
+    {topic:'study', studyLesson:' Series ', studySection:' Ratio test '},
+    {topic:'other'},
+    {topic:'balance'},
+    {topic:'question'},
+  ];
+  for (const input of accepted) {
+    const s = setup({send:async payload=>deliveries.push(payload)});
+    try { assert.equal((await s.api(request({...body,...input}))).status,200); }
+    finally { s.sql.close(); }
+  }
+  assert.equal(deliveries[0].problemRevision,3);
+  assert.equal(deliveries[1].problemRevision,undefined);
+  assert.equal(deliveries[2].problemId,undefined);
+  assert.equal(deliveries[3].studyLesson,'Series');
+  assert.equal(deliveries[3].studySection,'Ratio test');
+  const s = setup();
+  try {
+    for (const bad of [
+      {topic:'study'}, {topic:'study',studyLesson:'Only a lesson'}, {topic:'study',studyLesson:'A',studySection:' '},
+      {topic:'study',studyLesson:'A',studySection:'B\nC'}, {topic:'study',studyLesson:'A'.repeat(121),studySection:'B'},
+      {topic:'problem',problemId:id,problemRevision:-1}, {topic:'problem',problemId:id,problemRevision:'3'},
+      {topic:'problem',problemRevision:4}, {topic:'problem',problemId:'forged'}, {topic:'other',problemId:id},
+      {topic:'problem',studyLesson:'A',studySection:'B'}, {topic:'unknown'}, {topic:'__proto__'},
+    ]) assert.equal((await s.api(request({...body,...bad}))).status,400,JSON.stringify(bad));
+    assert.equal(s.sent(),0);assert.equal(sqlCount(s.sql),0);
+  } finally {s.sql.close();}
+  const sent = [];
+  const mock=resendContactSender('test','Test sender',async(_,init)=>{sent.push(JSON.parse(init.body));return Response.json({id:'local-only'});});
+  for (const d of deliveries) await mock(d);
+  assert.ok(sent[0].text.includes('Problem ID: '+id+'\nSaved revision: 3'));
+  assert.ok(!sent[1].text.includes('Saved revision:'));
+  assert.ok(sent[3].text.includes('Lesson: Series\nSection: Ratio test'));
+  assert.ok(sent[4].subject.endsWith('Other'));
+});
+
+test('contextual sign-in returns and drafts are exact, bounded and local', async () => {
+  const {afterSignIn}=await import('../lib/study/practice-link.mjs');
+  const {problemReportHref}=await import('../lib/contact-link.mjs');
+  const {freshContactDraft,readContactDraft,draftFields}=await import('../lib/contact-client.ts');
+  const id='cn_0123456789abcdef0123', p=problemReportHref(id,7), q=problemReportHref(id);
+  assert.equal(p,'/contact?topic=problem&problemId='+id+'&revision=7');
+  assert.equal(q,'/contact?topic=problem&problemId='+id);
+  assert.equal(afterSignIn(p),p);assert.equal(afterSignIn(q),q);
+  const initial=freshContactDraft(p);
+  assert.deepEqual(draftFields(initial),{problemId:id,problemRevision:7});
+  assert.deepEqual(draftFields(freshContactDraft(q)),{problemId:id});
+  assert.deepEqual(draftFields(freshContactDraft(problemReportHref())),{});
+  const draft={...initial,topic:'study',lesson:'Power series',section:'Endpoints',message:'The lower endpoint appears to be included.',requestId:body.requestId};
+  const stored=JSON.stringify({path:p,draft});
+  assert.deepEqual(readContactDraft(p,stored),draft);
+  assert.deepEqual(draftFields(draft),{studyLesson:'Power series',studySection:'Endpoints'});
+  assert.deepEqual(readContactDraft(q,stored),freshContactDraft(q));
+  assert.deepEqual(readContactDraft(p,'invalid'),initial);
+  for(const suffix of ['&revision=8','&next=https://elsewhere','#x','&extra=x'])assert.equal(afterSignIn(p+suffix),'/contact');
+  for(const rev of ['0','-1','1.2','007','9007199254740992'])assert.equal(afterSignIn(q+'&revision='+rev),'/contact');
+  assert.equal(afterSignIn('//example.org/contact'),'/');
+  assert.equal(afterSignIn('/contact?topic=problem&revision=2'),'/contact');
+});
+
+test('a token arriving after contact cancellation cannot send or expose an upstream error',async()=>{
+  const {contactRequest}=await import('../lib/contact-client.ts');
+  let deliver, calls=0;
+  const c=new AbortController();
+  const p=contactRequest(()=>new Promise(resolve=>{deliver=resolve;}),c.signal,body,async()=>{calls++;return Response.json({ok:true});});
+  c.abort();await assert.rejects(p);deliver('late-token');
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,0);
+  const safe=await contactRequest(async()=>'local',new AbortController().signal,body,async()=>Response.json({error:'private service detail',retryAfter:60},{status:503}));
+  assert.deepEqual(safe,{ok:false,status:503,retryAfter:60});
+});

@@ -4,6 +4,18 @@ import { readExecutionProfile } from "./execution-profile.mjs";
 
 const [command, ...args] = process.argv.slice(2);
 if (!["dev", "build"].includes(command)) throw new Error("Expected dev or build.");
+if (command === "build") {
+  const {verifyCheckerSources} = await import('./milestone4/checker-policy.mjs');
+  verifyCheckerSources();
+  const {verifyCreationPolicy} = await import('./milestone4/creation-policy.mjs');
+  await verifyCreationPolicy();
+  const {verifyLegacyEligibility} = await import('./bank/quality/verify-legacy-eligibility.mjs');
+  verifyLegacyEligibility();
+  const {verifySelectionVocabulary} = await import('./bank/quality/verify-selection-vocabulary.mjs');
+  verifySelectionVocabulary();
+  const {verifyStudyAdmissions,studyEvidenceEnvironment} = await import('./milestone4/verify-study-admissions.mjs');
+  await verifyStudyAdmissions(studyEvidenceEnvironment());
+}
 const managedLinux = readExecutionProfile() === "managed-linux";
 
 if (managedLinux && command === "build") {

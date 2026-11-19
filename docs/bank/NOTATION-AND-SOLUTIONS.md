@@ -4,6 +4,8 @@ Version: `calculus-ninja-notation-v1` / `worked-solutions-v1`.
 Player-facing reference: [Help → Mathematical notation](https://calculus.ninja/help#notation).
 These rules apply to statements, choices, explanations, new families, standalone questions, and source adaptations. A source textbook's conventions do not override the product conventions.
 
+The [standing problem-authoring standards](PROBLEM-AUTHORING-STANDARDS.md) extend these rules to construction variety, independent options-visible review, distractors, lineage, provenance, session quality, and safe publication. Follow their checklist for every addition and preserve newly demonstrated successes as documented rules with evidence.
+
 ## Reference policy
 
 Use widely accepted mathematical forms, consulting Wolfram MathWorld for definitions and conventions. A reference can document several valid notations; pick one consistent, explicit convention instead of claiming a universal notation. Prefer the established spelling and symbol for a special function, and state its definition/domain where readers may not know it. Never copy a computer-language function identifier into mathematical prose.
@@ -37,6 +39,8 @@ Checked references (2026-11-03): [Natural logarithm](https://mathworld.wolfram.c
 
 `lib/server/solution-presentation.mjs` admits only registered, reviewed presentations: exact source-hash-bound finite corrections, the audited legacy constructor on its bounded domain, and the independently reconstructed standalone polynomial v2 constructor. A new family or a new finite instance needs a mathematical/editorial review and a source-bound registry entry before publication; self-declared approval flags do not bypass the gate. `scripts/bank/admin.mjs` applies the gate on every insert; the delta path uses this same insert, after independent Python reconstruction. Changing a frozen constructor, answer, statement meaning, or parameter domain requires fresh verification and a revision, not silent presentation substitution.
 
+The focused quality release adds `scripts/bank/quality/reviewed.json` and `quality/contract.py` for exact finite reviewed constructions and permitted adaptations, plus `lib/server/solution-reviews/quality.json` for their destination source bindings. A local registry entry is not evidence of production import. `ProblemStatement` uses the same protected mathematical grouping as `SolutionSteps`, with responsive prose and display treatment for long prompt equations.
+
 For each addition:
 
 - Write or extend a reproducible verifier and source-bound review; preserve licensing and provenance.
@@ -45,3 +49,10 @@ For each addition:
 - Include notation version, review version, source and review-code digests, exact inventory/family counts, failures and verification limitations in the release evidence. Do not publish with missing coverage or a failing check.
 
 Canonical bank records, content hashes, IDs, answers and saved round snapshots remain immutable. New rounds store the reviewed presentation. Reviews of older finite questions use a separate exact-source-bound explanation overlay; recorded playback keeps the saved explanation, while analysis labels later clarifications. Older snapshots without enough source evidence are never reconstructed by guessing. A correctness change requires a new revision and explicit historical treatment; this presentation update does not regrade previous results.
+
+
+## Answer-entry and guide maintenance
+
+The Milestone 4 answer-entry extension is documented in [ANSWER-ENTRY.md](../milestone4/ANSWER-ENTRY.md). Keep `/help#formatting`, task instructions, actual editor serialization, parser interpretation and grading fixtures synchronized. Distinguish valid mathematical notation, safe rendering and verified grading support. Use explicit grouped arguments/exponents, `ln` for natural logarithms and inverse-function names; never turn an unsupported form into a false wrong verdict. The underlying published content and recorded verdicts remain immutable.
+
+A new supported route needs an independent source-bound review plus reference, equivalent, wrong, domain and resource-limit fixtures. Guide examples are regression obligations under their stated contracts; they are not admission evidence for a practice pool. Verify the rendered Help page and actual editor on desktop/mobile before claiming an interface check.

@@ -5,7 +5,7 @@ import type { Store, Data } from './firestore-admin.ts';
 
 export const QA_UIDS = ['cn_m1qa_ed08a3de_0', 'cn_m1qa_ed08a3de_1', 'cn_m1qa_ed08a3de_2'];
 const PREFIX = 'cn_m1qa_ed08a3de_';
-const COLLECTIONS = ['users', 'users_public', 'questionSets', 'gameSecrets', 'games', 'bankRecent'];
+const COLLECTIONS = ['users', 'users_public', 'questionSets', 'gameSecrets', 'games', 'bankRecent', 'competitiveSeatReceipts', 'replayContent', 'replayManifests', 'replayServer'];
 // Every path is isolated at its top-level collection, including transaction
 // reads/writes and history queries. This cannot touch ordinary player records.
 export function isolatedQaStore(base: Store): Store {
@@ -13,9 +13,11 @@ export function isolatedQaStore(base: Store): Store {
     if (!COLLECTIONS.includes(value.split('/')[0])) throw Error('Unsupported QA collection');
     return PREFIX + value;
   };
-  return { get: value => base.get(path(value)),
+  // The legacy solo compatibility check may only read its own namespaced marker.
+  const readPath = (value: string) => value === 'roundCreation/control' ? PREFIX + value : path(value);
+  return { get: value => base.get(readPath(value)),
     find: (collection, filters, limit) => base.find(path(collection), filters, limit),
-    transaction: fn => base.transaction(tx => fn({get: value => tx.get(path(value)), set: (value, data) => tx.set(path(value), data), delete: value => tx.delete(path(value))})) };
+    transaction: fn => base.transaction(tx => fn({get: value => tx.get(readPath(value)), set: (value, data) => tx.set(path(value), data), delete: value => tx.delete(path(value))})) };
 }
 export async function operatorQa(input: Data, db: D1Database, base: Store) {
   const store = isolatedQaStore(base);
@@ -38,13 +40,13 @@ export async function operatorQa(input: Data, db: D1Database, base: Store) {
   const uid = QA_UIDS[input.actor];
   if (input.action === 'history') return {history: await store.find('games', [['players', 'ARRAY_CONTAINS', uid], ['status', 'EQUAL', 'finished']], 100)};
   if (input.action === 'snapshot') {
-    if (!/^[a-f0-9]{24}$/.test(input.gameId || '')) throw Error('Invalid QA game');
+    if (!/^(?:[a-f0-9]{24}|c2[a-f0-9]{28})$/.test(input.gameId || '')) throw Error('Invalid QA game');
     const game = await store.get('gameSecrets/' + input.gameId);
     if (!game?.players?.includes(uid)) throw Error('QA game membership required');
     return {roundSnapshot: game.roundSnapshot, receipts: game.receipts, status: game.status};
   }
   if (input.action !== 'call' || !['profile', 'questions', 'games'].includes(input.resource)) throw Error('Invalid QA action');
-  const api = createGameApi({store, verify: async token => {if (token !== uid) throw Error('Invalid QA identity'); return {sub: uid, name: 'Milestone 1 isolated verification'};},
+  const api = createGameApi({store, compactCompetitiveBank:true, verify: async token => {if (token !== uid) throw Error('Invalid QA identity'); return {sub: uid, name: 'Milestone 1 isolated verification'};},
     select: (request, recent) => selectBankQuestions(db, request, recent), checkPlayable: questions => assertBankSetPlayable(db, questions),
     quota: actor => consumeBankReadQuota(db, actor), mutationQuota: actor => consumeMutationQuota(db, actor)});
   const response = await api(input.resource, new Request('https://calculus.ninja/api/' + input.resource, {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + uid}, body: JSON.stringify(input.body)}));

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Trophy, Activity } from 'lucide-react';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { loadLeaderboard } from '@/lib/stat-queries';
@@ -49,9 +48,7 @@ export default function LeaderboardPage() {
   return (
     <main className="min-h-screen dark:text-zinc-50 text-zinc-900 font-sans selection:bg-emerald-500/30">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div
           className="space-y-8"
         >
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -87,10 +84,7 @@ export default function LeaderboardPage() {
                   const position = users.findIndex(other => Math.round(other.rating) === Math.round(user.rating)) + 1;
                   const rankInfo = getRankInfo(user.rating, true);
                   return (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                    <div
                       key={user.id}
                       className="grid grid-cols-[2.5rem_minmax(0,1fr)_4.5rem] gap-2 p-3 sm:grid-cols-12 sm:gap-4 sm:p-4 items-center dark:hover:bg-zinc-800/20 hover:bg-zinc-50 transition-colors"
                     >
@@ -121,13 +115,13 @@ export default function LeaderboardPage() {
                         </div>
                         <RankIcon rated rating={user.rating} className="w-8 h-8 hidden sm:block" />
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
     </main>
   );

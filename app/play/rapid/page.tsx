@@ -1,25 +1,30 @@
 'use client';
+import { ContentAttribution } from '@/components/ContentAttribution';
+import { requireMultipleChoiceQuestions } from '@/lib/game-progress';
+import { ProblemStatement } from '@/components/ProblemStatement';
 
 import {useReplayCapture,ReplayCaptureStatus,observeReplay,useRoundUrl,capturedView} from '@/components/ReplayCapture';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { motion, AnimatePresence } from 'motion/react';
 import { ProblemReference } from '@/components/ProblemReference';
 import { MathDisplay } from '@/components/MathDisplay';
 import { ArrowRight, Zap, RefreshCw, Home, Timer, Info } from 'lucide-react';
 import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
 import { RankIcon, getRankInfo } from '@/components/RankDisplay';
-import { selectQuestions } from '@/lib/questions';
+import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundStart';
+import {CancelledRound} from '@/components/CancelledRound';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
 import { nextUnanswered } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
-import { db } from '@/firebase';
+import { auth, db } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 interface Question {
+  contentNotice?: import('@/lib/bank/contracts').ContentNotice;
   problemId?: string;
   problemRevision?: number;
+  legacy?: boolean;
   latexProblem: string;
   options: string[];
   correctIndex: number;
@@ -29,12 +34,16 @@ interface Question {
 }
 
 export default function RapidMode() {
+  const {user}=useAuth();
+  return <RapidPractice key={user?.uid??'signed-out'}/>;
+}
+
+function RapidPractice() {
   const { user, loading: authLoading } = useAuth();
   const [category, setCategory] = useState('all');
   const [difficulty, setDifficulty] = useState('medium');
   const [timeLimit, setTimeLimit] = useState(60); // seconds
   
-  const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState('');
   const [reviewedProblems, setReviewedProblems] = useState<Question[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -75,17 +84,27 @@ export default function RapidMode() {
     }
   }, [profile?.color]);
   
-  const startGame = async () => {
-    if (!user || busy.current) return;
-    setGenerationError(''); setSaveError(''); setLoading(true);
-    try {
-      const generated = await selectQuestions(category, difficulty, 20, 'rapid');
-      const id = await gameProgress.createGame(user.uid, 'rapid', generated, { category, difficulty, timeLimit });
-      finishedRef.current = false; setReviewedProblems([]);
-      const round=await gameProgress.getGame(id);setRoundGame(round);setQuestions(round.questions || []); setCurrentIndex(0); setSelectedOption(null); setScore(0);
-      setTimeLeft(timeLimit); setFinished(false); setCountdown(3); setGameId(id);
-    } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not start the game.'); }
-    finally { setLoading(false); }
+  async function loadRound(id:string){
+    if(!user)return false;const uid=user.uid;
+    const round=await gameProgress.getGame(id);
+    if(round.mode!=='rapid'||!['active','finished','cancelled'].includes(round.status))throw Error('This round is unavailable in Rapid practice.');
+    if(auth.currentUser?.uid!==uid)return false;
+    const savedQuestions=requireMultipleChoiceQuestions(round.questions);
+    setGameId(id);setRoundGame(round);setQuestions(savedQuestions);setCurrentIndex(nextUnanswered(round,uid));
+    setSelectedOption(null);setScore(round.scores[uid]||0);setCategory(round.category||'all');setDifficulty(round.difficulty||'medium');
+    setReviewedProblems(savedQuestions.filter((_,index)=>Boolean(round.answers?.[uid]?.[index])));
+    deadlineRef.current=round.deadline||0;startTimeRef.current=round.startTime||0;
+    if(round.originalTimeLimit!==undefined)setTimeLimit(round.originalTimeLimit);
+    setCountdown(Math.max(0,Math.ceil((startTimeRef.current-Date.now())/1000))||null);
+    setTimeLeft(Math.max(0,Math.ceil((deadlineRef.current-Math.max(Date.now(),startTimeRef.current))/1000)));
+    finishedRef.current=['finished','cancelled'].includes(round.status);setFinished(round.status==='finished');setGenerationError('');setSaveError('');return true;
+  }
+  const roundStart=usePendingRoundStart(user?.uid,'rapid',loadRound,roundGame&&(questions.length||roundGame.status==='cancelled')?gameId:null);
+  const changeSettings=()=>{setGameId(null);setRoundGame(null);setQuestions([]);setFinished(false);setCountdown(null);deadlineRef.current=0;startTimeRef.current=0;finishedRef.current=false;};
+  const loading=roundStart.loading;
+  const startGame=()=>{
+    if(!user||busy.current)return;setGenerationError('');setSaveError('');
+    return roundStart.start({mode:'rapid',category,difficulty,count:20,options:{timeLimit}});
   };
 
   const finishGame = useCallback(async () => {
@@ -106,13 +125,14 @@ export default function RapidMode() {
     return gameProgress.watchGame(gameId, user.uid, game => {
       setRoundGame(game);deadlineRef.current = game.deadline || 0; startTimeRef.current = game.startTime || 0;
       setScore(game.scores[user.uid] || 0);
-      setReviewedProblems((game.questions || []).filter((_, index) => Boolean(game.answers?.[user.uid]?.[index])));
+      setReviewedProblems(requireMultipleChoiceQuestions(game.questions).filter((_, index) => Boolean(game.answers?.[user.uid]?.[index])));
       if (game.status === 'finished') { finishedRef.current = true; setFinished(true); }
+      if (game.status === 'cancelled') { finishedRef.current = true;deadlineRef.current=0;setCountdown(null); }
     }, () => setSaveError('Game sync failed. Please reconnect.'));
   }, [gameId, user]);
 
   useEffect(() => {
-    if (!gameId || finished) return;
+    if (!gameId || finished || roundGame?.status==='cancelled') return;
     const tick = () => {
       if (!deadlineRef.current) return;
       const untilStart = Math.max(0, Math.ceil((startTimeRef.current - Date.now()) / 1000));
@@ -123,7 +143,7 @@ export default function RapidMode() {
     };
     tick(); const interval = setInterval(tick, 200);
     return () => clearInterval(interval);
-  }, [gameId, finished, finishGame]);
+  }, [gameId, finished, finishGame,roundGame?.status]);
 
   const handleOptionSelect = (index: number) => {
     if (!saving && !finished && countdown === null) {if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});setSelectedOption(index);}
@@ -148,7 +168,7 @@ export default function RapidMode() {
     finally { busy.current = false; setSaving(false); }
   };
 
-  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id).then(g=>{if(g.mode!=='rapid')throw Error('This round belongs to another mode.');setGameId(id);setRoundGame(g);setQuestions(g.questions||[]);setCurrentIndex(nextUnanswered(g,user!.uid));setScore(g.scores[user!.uid]||0);setFinished(g.status==='finished');}).catch(e=>setGenerationError(e.message));});
+  useRoundUrl(user?.uid,gameId,id=>{void loadRound(id).catch(()=>setGenerationError('Your round could not be loaded. Please refresh and try again.'));});
   const captureStatus=useReplayCapture(user?.uid,gameId,roundGame?.replayVersion,{index:!loading&&!finished&&countdown===null&&questions.length?currentIndex:null,selectedOption,feedbackIndex:null,finished,settled:!saving});
 
   if (authLoading) return <main className="p-8 text-center text-zinc-400" role="status">Loading your account…</main>;
@@ -170,34 +190,32 @@ export default function RapidMode() {
     );
   }
 
+  if(roundGame?.status==='cancelled')return <CancelledRound onSettings={changeSettings} error={roundStart.error}/>;
+
   if (finished) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           <Zap className="w-20 h-20 text-yellow-500 mx-auto mb-6" />
           <h2 className="text-3xl font-bold mb-2">Rapid Complete!</h2>
           <p className="text-zinc-400 mb-8">You solved <span className="font-bold font-mono text-xl" style={{ color: playerColor }}>{score}</span> {score === 1 ? 'problem' : 'problems'}. This round allowed {timeLimit} seconds; wrong answers deducted 5 seconds.</p>
           
-          <ReplayCaptureStatus status={captureStatus} /><GameResultStatus gameId={gameId} />
+          <ReplayCaptureStatus status={captureStatus} /><GameResultStatus gameId={gameId} /><GameSaveError error={generationError||roundStart.error} /><PendingRoundStart state={roundStart}/>
           {reviewedProblems.length > 0 && <details className="my-4 text-left"><summary className="min-h-11 cursor-pointer text-sm text-zinc-400">Report an answered problem</summary>
-            {reviewedProblems.map((question, index) => <div key={question.problemId || index} className="my-3 rounded-xl border border-zinc-800 p-3"><MathDisplay math={question.latexProblem} block /><ProblemReference problemId={question.problemId} problemRevision={question.problemRevision} /></div>)}
+            {reviewedProblems.map((question, index) => <div key={question.problemId || index} className="my-3 rounded-xl border border-zinc-800 p-3"><ProblemStatement math={question.latexProblem} legacy={question.legacy} /><ContentAttribution credit={question.contentNotice} /><ProblemReference problemId={question.problemId} problemRevision={question.problemRevision} /></div>)}
           </details>}
           <div className="flex flex-col gap-4">
             <button 
               onClick={startGame}
-              className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 rounded-xl font-bold transition-colors"
+              disabled={!!roundStart.pending||roundStart.loading}
+              className="disabled:opacity-40 disabled:cursor-not-allowed w-full py-3 bg-yellow-600 hover:bg-yellow-500 rounded-xl font-bold transition-colors"
             >
               Play Again
             </button>
             <button 
-              onClick={() => {
-                setQuestions([]);
-                setFinished(false);
-              }}
+              onClick={changeSettings}
               className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-bold transition-colors"
             >
               Change Settings
@@ -206,7 +224,7 @@ export default function RapidMode() {
               Back to Dashboard
             </a>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -214,18 +232,14 @@ export default function RapidMode() {
   if (countdown !== null) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative">
-        <AnimatePresence mode="wait">
-          <motion.div
+        
+          <div
             key={countdown}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.5, opacity: 0 }}
-            transition={{ duration: 0.5 }}
             className="text-8xl font-bold text-yellow-500 font-mono"
           >
             {countdown > 0 ? countdown : 'GO!'}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        
 
       </div>
     );
@@ -236,20 +250,17 @@ export default function RapidMode() {
 
     return (
       <div className="min-h-screen max-w-4xl mx-auto px-4 py-12 relative overflow-x-clip">
-        <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError} />
-        <AnimatePresence>
+        <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError||roundStart.error} />
+        
           {xpEarned !== null && (
-             <motion.div 
-               initial={{ opacity: 0, y: 20, scale: 0.8 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: -20 }}
+             <div
                className="pointer-events-none fixed top-24 right-10 md:right-20 bg-amber-500/20 border border-amber-500/50 text-amber-500 font-bold px-4 py-2 rounded-xl flex items-center gap-2 z-50 shadow-lg"
              >
                <span className="text-xl">+</span>
                <span className="text-2xl">{xpEarned} XP</span>
-             </motion.div>
+             </div>
           )}
-        </AnimatePresence>
+        
 
         <div className="flex justify-between items-center gap-3 mb-8">
           <a href="/" className="text-zinc-400 hover:text-white flex items-center gap-2">
@@ -261,29 +272,22 @@ export default function RapidMode() {
           </div>
           <div className="font-bold font-mono text-xl sm:text-2xl flex items-center gap-2 whitespace-nowrap" style={{ color: playerColor }}>
             Score: 
-            <motion.span
+            <span
               key={score}
-              initial={{ scale: 1.5, opacity: 0, y: -10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               className="inline-block"
             >
               {score}
-            </motion.span>
+            </span>
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div 
+        
+          <div 
             key={currentIndex}
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.3 }}
             className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 sm:p-8 mb-8"
           >
             <div className="text-xl sm:text-2xl mb-6 sm:mb-12 w-full overflow-x-auto py-4">
-              <MathDisplay math={q.latexProblem} block />
+              <ProblemStatement math={q.latexProblem} legacy={q.legacy} /><ContentAttribution credit={q.contentNotice} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,9 +317,7 @@ export default function RapidMode() {
             </div>
 
             {selectedOption !== null && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="mt-8 flex justify-center"
               >
                 <button
@@ -324,10 +326,10 @@ export default function RapidMode() {
                 >
                   Confirm Answer <Zap className="w-5 h-5" />
                 </button>
-              </motion.div>
+              </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        
       </div>
     );
   }
@@ -347,7 +349,8 @@ export default function RapidMode() {
         <p className="text-zinc-400 mt-4 text-lg">Race against the clock. How many can you solve?</p>
       </div>
       
-      {generationError && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError}</p>}
+      <PendingRoundStart state={roundStart}/>
+      {(generationError||roundStart.error) && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError||roundStart.error}</p>}
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 sm:p-10 space-y-8 backdrop-blur-sm shadow-xl">
         <div className="space-y-6">
           <div>
@@ -453,11 +456,12 @@ export default function RapidMode() {
         <div className="pt-4 border-t border-zinc-800/50">
           <button 
             onClick={startGame}
-            className="w-full py-4 bg-yellow-600 hover:bg-yellow-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/20 flex items-center justify-center gap-2 group"
+              disabled={!!roundStart.pending||roundStart.loading}
+            className="disabled:opacity-40 disabled:cursor-not-allowed w-full py-4 bg-yellow-600 hover:bg-yellow-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/20 flex items-center justify-center gap-2 group"
           >
             <Zap className="w-5 h-5 fill-current" /> 
             <span>Start Rapid</span>
-            <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all absolute right-6" />
+            <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </div>

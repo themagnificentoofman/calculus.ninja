@@ -1,3 +1,4 @@
+import {historicalFixturePolicy,fixtureLegacyPolicy} from './fixtures/bank/legacy-policy-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync,writeFileSync,mkdtempSync,rmSync } from 'node:fs';
@@ -7,11 +8,16 @@ import { openDatabase,insertProblem,hash,canonical as canonicalRecord } from '..
 import { openCompact,syncCompact,verifyCompact,activateCompact } from '../scripts/bank/compact.mjs';
 import { exportCompact,loadPlan,runImport,localImportAdapter,verifyImported,activateVerified,collectMeta } from '../scripts/bank/compact-import.mjs';
 import { sqliteD1 } from '../scripts/bank/sqlite-d1.mjs';
-import { selectBankQuestions,assertBankSetPlayable,POOL_SQL,SLOT_SQL } from '../lib/server/compact-bank-selection.ts';
+import { selectBankQuestions as selectActualBankQuestions,assertBankSetPlayable,POOL_SQL,SLOT_SQL } from '../lib/server/compact-bank-selection.ts';
 import { BankUnavailableError } from '../lib/server/bank-selection.ts';
 import { decodeCompact,canonical } from '../lib/bank/compact-codec.mjs';
+import {createReplayApi} from '../lib/server/replay-api.ts';
+import {recordExposures,exposureWeight} from '../lib/bank/exposure.ts';
+import {reserveQuestionSet,ReservationConflictError} from '../lib/bank/issuance-reservations.mjs';
 import { createGameApi } from '../lib/server/game-api.ts';
 import { createProblemReport } from '../lib/server/problem-report.ts';
+// The old storage fixtures explicitly opt into an isolated test-only eligibility policy.
+const selectBankQuestions=async(db,input,recent,rng,now)=>selectActualBankQuestions(db,{...input,includeLegacy:true},recent,rng,now,await historicalFixturePolicy(db));
 const samples=JSON.parse(readFileSync(new URL('./fixtures/bank/review-samples.json',import.meta.url),'utf8'));
 function fixture(){
   const source=openDatabase(':memory:'),target=openCompact(':memory:');
@@ -53,6 +59,23 @@ test('compact conversion reconstructs canonical evidence, preserves immutable re
     await assert.rejects(decodeCompact({...row,payload_gzip:new Uint8Array([0,1,2])}));
   }finally{f.close();}
 });
+test('live reservations remain excluded through actual MC recent-item fallback and alias resolution',async()=>{
+ const f=fixture(),now=1000000,input={category:'integration',difficulty:'medium',count:3};
+ try{
+  const selected=await selectBankQuestions(f.db,input,{},undefined,now),q=selected.questions[0];
+  const recent={problems:selected.questions.map(q=>q.problemId)};
+  assert.equal((await selectBankQuestions(f.db,input,recent,undefined,now)).relaxation,'recent-problems');
+  const hold=reserveQuestionSet(recent,'held',[q],'issued',now);
+  await assert.rejects(selectBankQuestions(f.db,input,{...recent,...hold},undefined,now+1),BankUnavailableError);
+  const alias='historical-source-alias';
+  f.target.prepare('INSERT INTO cbank_problem_lineage(problem_id,lineage_id) VALUES (?,?)').run(alias,q.lineageId||q.problemId);
+  const aliased=reserveQuestionSet(recent,'held',[{problemId:alias,lineageId:alias}],'issued',now);
+  await assert.rejects(selectBankQuestions(f.db,input,{...recent,...aliased},undefined,now+1),BankUnavailableError);
+  assert.equal((await selectBankQuestions(f.db,input,{...recent,...hold},undefined,now+600000)).questions.length,3);
+  let queries=0;const noDb={prepare(){queries++;throw Error('No query expected');}};
+  await assert.rejects(selectActualBankQuestions(noDb,input,{reservationOverflowUntil:now+1},undefined,now),ReservationConflictError);assert.equal(queries,0);
+ }finally{f.close();}
+});
 test('compact indexed sampler respects filters/recency, bounds decompressions and rechecks retirement',async()=>{
   const f=fixture(),Original=globalThis.DecompressionStream;let decompressions=0;
   globalThis.DecompressionStream=class extends Original{constructor(...args){super(...args);decompressions++;}};
@@ -66,7 +89,7 @@ test('compact indexed sampler respects filters/recency, bounds decompressions an
     await assertBankSetPlayable(f.db,selected.questions);
     f.target.prepare("UPDATE cbank_publication SET state='retired' WHERE problem_ref=(SELECT problem_ref FROM cbank_problems WHERE problem_id=?)").run(selected.questions[0].problemId);
     await assert.rejects(selectBankQuestions(f.db,input),BankUnavailableError);await assert.rejects(assertBankSetPlayable(f.db,selected.questions),BankUnavailableError);
-    for(const [sql,args] of [[POOL_SQL,['medium','*','integration','integration']],[SLOT_SQL,[1,0]]]){
+    for(const [sql,args] of [[POOL_SQL,['medium','*','integration','integration','[]']],[SLOT_SQL,[1,0]]]){
       const plans=f.target.prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(r=>r.detail);
       assert.ok(plans.some(p=>/SEARCH/.test(p)));assert.ok(!plans.some(p=>/^SCAN (cbank|b\b|s\b|u\b)/.test(p)),plans.join('\n'));
     }
@@ -102,6 +125,36 @@ test('compact import checksums, atomic receipts, interruption resume, immutable 
     await assert.rejects(db.batch([db.prepare(statement.replace(/X'[a-f0-9]{64}'/,"X'"+'0'.repeat(64)+"'"))]),/new problem revision/);
     writeFileSync(join(folder,plan.batches[0].file),'[]');assert.throws(()=>loadPlan(folder),/checksum/);
   }finally{target.close();f.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('import rechecks the exact execution bytes after callbacks and keeps original receipts',async()=>{
+  const f=fixture(),dir=mkdtempSync(join(tmpdir(),'compact-changed-batch-')),target=openCompact(':memory:');
+  try{
+    const folder=join(dir,'plan'),plan=exportCompact(f.target,folder,{rowsPerBatch:30}),db=localImportAdapter(target);
+    const second=join(folder,plan.batches[1].file),original=readFileSync(second),manifestBefore=readFileSync(join(folder,'manifest.json'),'utf8');
+    await assert.rejects(runImport(db,folder,{local:true,maxBatches:2,onProgress:()=>{
+      writeFileSync(second,JSON.stringify(["INSERT INTO cbank_config VALUES ('unreviewed','changed')"]));
+    }}),/Batch changed after plan validation/);
+    const receipts=target.prepare('SELECT * FROM cbank_import_receipts').all();
+    assert.equal(receipts.length,1);assert.equal(receipts[0].batch_id,plan.bundleId+'/0');assert.equal(receipts[0].sha256,plan.batches[0].sha256);
+    assert.equal(target.prepare("SELECT value FROM cbank_config WHERE key='unreviewed'").get(),undefined);
+    assert.equal(readFileSync(join(folder,'manifest.json'),'utf8'),manifestBefore);
+    writeFileSync(second,original);
+    const resumed=await runImport(db,folder,{local:true,maxBatches:2});assert.equal(resumed.completed,1);assert.equal(resumed.skipped,1);
+    const repeated=await runImport(db,folder,{local:true,maxBatches:2});assert.equal(repeated.completed,0);assert.equal(repeated.skipped,2);
+  }finally{target.close();f.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('operator transport rejects a file replaced while opening the reviewed tranche',async()=>{
+  const f=fixture(),dir=mkdtempSync(join(tmpdir(),'compact-changed-operator-'));
+  try{
+    const folder=join(dir,'plan'),plan=exportCompact(f.target,folder,{rowsPerBatch:30}),sent=[];
+    const state={budget:{mode:'operator-budget'},bundleId:plan.bundleId,nextSequence:0,receipts:[],trancheStart:0,trancheEnd:0};
+    await assert.rejects(runImport(null,folder,{mode:'operator-budget',maxBatches:1,operator:async input=>{
+      if(input.op==='status')return state;
+      if(input.op==='open'){writeFileSync(join(folder,plan.batches[0].file),'[]');return {...state,trancheEnd:1};}
+      sent.push(input);throw Error('Unreviewed import reached transport');
+    }}),/Batch changed after plan validation/);
+    assert.deepEqual(sent,[]);
+  }finally{f.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('resource counters remain unknown locally and preserve actual provider metadata',()=>{
   assert.deepEqual(collectMeta([{meta:{rows_read:2,rows_written:3,size_after:99,duration:1}},{meta:{rows_read:4,rows_written:5,size_after:123,duration:2}}]),{rowsRead:6,rowsWritten:8,sizeAfter:123,sqlDurationMs:3});
@@ -180,4 +233,55 @@ test('compact gameplay preserves private snapshots, shared answer order, server 
     const report=createProblemReport({db:f.db,verify:async()=>({sub:'player-one'}),quota:async()=>true});
     const response=await report(request('problems/report',{problemId:samples[0].problemId,problemRevision:1,reason:'Please check this solution.'},'player-one'));assert.deepEqual(await response.json(),{ok:true});assert.equal(f.target.prepare('SELECT count(*) AS n FROM bank_reports').get().n,1);
   }finally{globalThis.fetch=originalFetch;f.close();}
+});
+
+
+test('real selector, game and replay APIs agree on issued, displayed, abandoned and attempted history',async()=>{
+ const f=fixture(),data=new Map();let now=1_000_000;
+ const clone=v=>v===undefined?null:structuredClone(v);
+ const store={get:async path=>clone(data.get(path)),find:async()=>[],transaction:async fn=>{
+  const pending=new Map();const result=await fn({get:async path=>{assert.equal(pending.size,0);return clone(data.get(path));},set:(path,value)=>pending.set(path,clone(value)),delete:path=>pending.set(path,null)});
+  for(const [path,value]of pending)value===null?data.delete(path):data.set(path,value);return result;
+ }};
+ const observed=[];
+ const api=createGameApi({store,now:()=>now,verify:async sub=>({sub}),select:(input,recent)=>{observed.push(clone(recent));return selectBankQuestions(f.db,input,recent,()=>.37,now);},checkPlayable:q=>assertBankSetPlayable(f.db,q),quota:async()=>true});
+ const replay=createReplayApi({store,now:()=>now,verify:async sub=>({sub})});
+ const call=async(resource,body)=>{const request=new Request('https://ninja.test/api/'+resource,{method:'POST',headers:{authorization:'Bearer lifecycle-player','content-type':'application/json'},body:JSON.stringify(body)});const response=resource==='replay'?await replay(request):await api(resource,request);const result=await response.json();assert.equal(response.status,200,JSON.stringify(result));return result;};
+ try{
+  await call('profile',{});
+  const created=now,set=await call('questions',{mode:'test',category:'integration',difficulty:'easy',count:3}),id=set.questionSetId;
+  const questions=clone(data.get('questionSets/'+id).questions);
+  let expected=recordExposures({},id,questions,'issued',now);assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
+  await call('games',{action:'create',questionSetId:id,mode:'test',options:{}});
+  const saved=clone(data.get('replayContent/'+id));
+  await call('replay',{op:'open',roundId:id,segmentId:'lifecycle-clock'});
+  const upload=(chunkIndex,sequence,index,monotonicMs)=>call('replay',{op:'upload',roundId:id,segmentId:'lifecycle-clock',chunkIndex,anchorMs:0,uncertaintyMs:0,closed:false,events:[{schemaVersion:1,eventId:'display-'+sequence,sequence,monotonicMs,type:'question_displayed',questionIndex:index}]});
+  const displayedHold=(q,at)=>({roundId:id,problemId:q.problemId,lineageId:q.lineageId||q.problemId,stage:'displayed',at,expiresAt:at+86400000});
+  now+=10000;await upload(0,1,0,10000);expected={...recordExposures(expected,id,[questions[0]],'displayed',now),reservations:[displayedHold(questions[0],now)],reservationOverflowUntil:0};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
+  now+=10000;await call('games',{action:'answer',gameId:id,index:0,selectedOption:questions[0].correctIndex});expected={...recordExposures(expected,id,[questions[0]],'attempted',now),reservations:[]};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);
+  now+=10000;const profile=clone(data.get('users/lifecycle-player'));await upload(1,2,1,30000);expected={...recordExposures(expected,id,[questions[1]],'displayed',now),reservations:[displayedHold(questions[1],now)]};assert.deepEqual(data.get('bankRecent/lifecycle-player'),expected);assert.deepEqual(data.get('users/lifecycle-player'),profile);
+  now=created+20*60000;
+  const next=await call('questions',{mode:'test',category:'integration',difficulty:'easy',count:1});
+  assert.deepEqual(observed.at(-1),expected);assert.equal(data.get('questionSets/'+next.questionSetId).questions[0].problemId,questions[2].problemId,'issued but never displayed/attempted item is eligible after ten minutes');
+  now=created+2*86400000;await upload(2,3,2,40000);
+  const retained=data.get('bankRecent/lifecycle-player').exposures;assert.equal(retained.length,1);assert.equal(retained[0].stage,'attempted');assert.equal(retained[0].problemId,questions[0].problemId);assert(exposureWeight(retained[0],now)>0);
+  assert.deepEqual(data.get('users/lifecycle-player'),profile);assert.deepEqual(data.get('replayContent/'+id),saved);assert.equal(Object.keys(data.get('gameSecrets/'+id).answers['lifecycle-player']).length,1);
+ }finally{f.close();}
+});
+
+test('legacy opt-in requires exact review, respects every exclusion and survives no fallback',async()=>{
+ const f=fixture(),input={category:'integration',difficulty:'easy',count:1};
+ try{
+  await assert.rejects(selectActualBankQuestions(f.db,input),BankUnavailableError);
+  await assert.rejects(selectActualBankQuestions(f.db,{...input,includeLegacy:true}),BankUnavailableError,'the shipping registry admits no unchecked legacy');
+  const p=samples.find(p=>p.familyId==='polynomial-area'),policy=fixtureLegacyPolicy([p]);
+  await assert.rejects(selectActualBankQuestions(f.db,input,{},undefined,undefined,policy),BankUnavailableError,'review is not opt-in');
+  const chosen=await selectActualBankQuestions(f.db,{...input,includeLegacy:true},{},undefined,undefined,policy);
+  assert.equal(chosen.questions[0].problemId,p.problemId);assert.equal(chosen.questions[0].legacy,true);
+  await assert.rejects(selectActualBankQuestions(f.db,{...input,includeLegacy:true,count:2},{},undefined,undefined,policy),BankUnavailableError,'exhaustion cannot add unreviewed items');
+  const before=f.target.prepare('SELECT count(*) n FROM cbank_problems').get().n;
+  f.target.prepare("INSERT INTO cbank_release_exclusions VALUES ('test-release',?,'global','Verified invalid fixture')").run(f.target.prepare('SELECT problem_ref FROM cbank_problems WHERE problem_id=?').get(p.problemId).problem_ref);
+  await assert.rejects(selectActualBankQuestions(f.db,{...input,includeLegacy:true},{},undefined,undefined,policy),BankUnavailableError,'opt-in cannot revive withdrawals');
+  assert.equal(f.target.prepare('SELECT count(*) n FROM cbank_problems').get().n,before,'history remains stored');
+ }finally{f.close();}
 });

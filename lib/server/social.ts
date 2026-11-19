@@ -24,10 +24,15 @@ export async function socialAction(store: Store, uid: string, action: string, in
       tx.set(`users/${uid}`, { ...me, friends: (me.friends || []).filter((p: string) => p !== other) });
       tx.set(`users/${other}`, { ...target, friends: (target.friends || []).filter((p: string) => p !== uid) }); return {};
     }
-    if (action === 'invite') {
+    if (action === 'invite' || action === 'invite_once') {
       const gameId = identifier(input.gameId), id = `${gameId}_${other}`;
       const [game, me, target, existing] = await Promise.all([tx.get(`games/${gameId}`), tx.get(`users/${uid}`), tx.get(`users/${other}`), tx.get(`gameInvites/${id}`)]);
-      if (!game || !me || !target || !game.players.includes(uid) || game.status !== 'waiting' || !['pvp', 'multiplayer'].includes(game.mode) || !me.friends?.includes(other) || !target.friends?.includes(uid)) throw new GameError('This invitation is not allowed.', 403);
+      if (!game || !me || !target || !game.players.includes(uid) || !['waiting', 'private_waiting'].includes(game.status) || !['pvp', 'multiplayer'].includes(game.mode) || !me.friends?.includes(other) || !target.friends?.includes(uid)) throw new GameError('This invitation is not allowed.', 403);
+      // A host-start retry may arrive after the recipient already responded.
+      if (action === 'invite_once' && existing) {
+        if (existing.from !== uid || existing.to !== other || existing.gameId !== gameId) throw new GameError('This invitation belongs to another player.', 409);
+        return {id, status: existing.status};
+      }
       if (lobbyExpired(game as any, now) || game.players.includes(other) || game.players.length >= (game.mode === 'pvp' ? 2 : 10)) throw new GameError('This lobby is no longer available.', 409);
       if (existing?.status === 'pending') return { id };
       if (me.lastGameInvite && now - me.lastGameInvite < 2000) throw new GameError('Please wait before sending another invitation.', 429);

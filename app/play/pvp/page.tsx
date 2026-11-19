@@ -1,24 +1,26 @@
 'use client';
+import { ProblemStatement } from '@/components/ProblemStatement';
 
 import {useReplayCapture,ReplayCaptureStatus,observeReplay,useRoundUrl,capturedView,clearRoundUrl} from '@/components/ReplayCapture';
 import { useState, useEffect, useRef } from 'react';
+import { useLobbyDeparture } from '@/components/LobbyDeparture';
+import { useLobbyPresence } from '@/components/LobbyPresence';
+import { LobbyChoice, LobbySignIn } from '@/components/LobbyChoice';
 import { useAuth } from '@/components/AuthProvider';
-import { motion, AnimatePresence } from 'motion/react';
 import { ProblemReference } from '@/components/ProblemReference';
 import { MathDisplay } from '@/components/MathDisplay';
+import { ContentAttribution } from '@/components/ContentAttribution';
 import { SolutionSteps } from '@/components/SolutionSteps';
 import { LastAnswerReview, type AnsweredQuestion } from '@/components/LastAnswerReview';
 import { Users, RefreshCw, Home, Play, CheckCircle2, XCircle, ArrowRight, Swords, Info } from 'lucide-react';
-import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
+import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundStart';
 import { RankIcon, getRankInfo } from '@/components/RankDisplay';
-import { db } from '@/firebase';
+import { auth, db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { selectQuestions } from '@/lib/questions';
 import { playSound } from '@/lib/sounds';
-import { loadWaitingGames } from '@/lib/stat-queries';
 import { hasRating } from '@/lib/progression';
 import { apiRequest, gameProgress } from '@/lib/game-session';
-import { gameStandings, nextUnanswered, type GameSession } from '@/lib/game-progress';
+import { gameStandings, nextUnanswered, type GameSession, type MultipleChoiceSession, requireMultipleChoiceSession } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { Chat } from '@/components/Chat';
 
@@ -30,8 +32,11 @@ interface ChatMessage {
 }
 
 interface Question {
+  contentNotice?: import('@/lib/bank/contracts').ContentNotice;
+  contentAttribution?: import('@/lib/bank/contracts').ContentCredit;
   problemId?: string;
   problemRevision?: number;
+  legacy?: boolean;
   latexProblem: string;
   options: string[];
   correctIndex: number;
@@ -45,7 +50,7 @@ interface AnswerRecord {
   timeMs: number;
 }
 
-type GameData = GameSession;
+type GameData = MultipleChoiceSession;
 
 export default function PvPMode() {
   const [match, setMatch] = useState(0);
@@ -57,6 +62,14 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   const [leaving, setLeaving] = useState(false);
   const [gameId, setGameId] = useState<string | null>(null);
   const [gameData, setGameData] = useState<GameData | null>(null);
+  useLobbyDeparture(user?.uid, gameId, gameData?.status);
+  const presenceError = useLobbyPresence(user?.uid, gameId, gameData?.status);
+  const [creationVisibility, setCreationVisibility] = useState<'private' | 'public' | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('host') === 'public') setCreationVisibility('public');
+    else if (params.has('invite')) setCreationVisibility('private');
+  }, []);
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -113,8 +126,8 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
     const unsub = gameProgress.watchGame(gameId, user!.uid, async (view) => {
       {
-        const data = view as GameData;
-        if (data.status === 'cancelled') { setGameId(null); setGameData(null); setGenerationError('This lobby was cancelled or expired. Start or join a new game.'); return; }
+        const data = requireMultipleChoiceSession(view);
+        if (data.status === 'cancelled') { setGameId(null); setGameData(null); setCreationVisibility(null); setGenerationError('This lobby was cancelled or expired. Start or join a new game.'); return; }
         setGameData(data);
         if (user && restoredGame.current !== gameId) {
           restoredGame.current = gameId;
@@ -135,11 +148,15 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           });
         }
       }
-    }, () => setSaveError('Game sync failed. Please reconnect.'));
+    }, () => setSaveError('Game sync failed. Please reconnect.'), () => {
+      setGameId(null); setGameData(null); setCreationVisibility(null); clearRoundUrl();
+      setGenerationError('You have left this lobby or it is no longer available. Start or join a new game.');
+    });
 
     return () => unsub();
   }, [gameId, user, leaving]);
 
+  const [hostInvitation, setHostInvitation] = useState<{room:string;to:string;message:string;retry:boolean} | null>(null);
   const [invitedFriendId, setInvitedFriendId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -151,7 +168,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
       }
       const joinId = params.get('join');
       if (joinId) {
-        joinGame(joinId);
+        joinGame(joinId,'link');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,41 +191,46 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     return () => clearInterval(interval);
   }, [gameId, user, gameData?.status, gameData?.deadline]);
 
-  const createGame = async () => {
-    setGenerationError('');
-    if (!user) return;
-    setLoading(true);
+  async function inviteFromStart(room:string, to:string, uid:string) {
     try {
-      // Select an immutable bank question set first
-      const generatedQuestions = await selectQuestions(category, difficulty, count, 'pvp');
-
-      if (generatedQuestions) {
-        try {
-          const docRef = { id: await gameProgress.createGame(user.uid, 'pvp', generatedQuestions, { category, difficulty }) };
-          setGameId(docRef.id);
-
-          // Send invite if invitedFriendId is set
-          if (invitedFriendId) {
-            await apiRequest('social', { action: 'invite', to: invitedFriendId, gameId: docRef.id });
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'games');
-        }
-      }
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Could not select problems. Please try again.');
-    } finally {
-      setLoading(false);
+      const invitation = await apiRequest('social', {action:'invite_once', to, gameId:room}, uid);
+      if (auth.currentUser?.uid === uid) setHostInvitation({room,to,message:invitation.status === 'rejected' ? 'Your friend declined the invitation.' : 'Invitation sent.',retry:false});
+    } catch {
+      if (auth.currentUser?.uid === uid) setHostInvitation({room,to,message:'The invitation could not be confirmed.',retry:true});
     }
+  }
+  const [closedHostId, setClosedHostId] = useState<string | null>(null);
+  async function loadHostRoom(id:string, saved?:{inviteTo?:string}) {
+    if (!user) return false;
+    const uid = user.uid;
+    const game = requireMultipleChoiceSession(await gameProgress.getGame(id, uid));
+    if (auth.currentUser?.uid !== uid) return false;
+    if (game.mode !== 'pvp' || game.players[0] !== uid) throw Error('This lobby belongs to another host.');
+    if (game.status === 'cancelled') {
+      setClosedHostId(id);
+      setGenerationError('This lobby closed. You can start another game.');
+      return true;
+    }
+    setGameData(game);
+    setGameId(id);
+    if (saved?.inviteTo && game.status === 'waiting') await inviteFromStart(id,saved.inviteTo,uid);
+    return true;
+  }
+  const hostStart = usePendingRoundStart(user?.uid, 'pvp', loadHostRoom, gameId && gameData?.players[0] === user?.uid ? gameId : closedHostId);
+  const createGame = () => {
+    if (!user) return;
+    setClosedHostId(null);
+    setGenerationError('');
+    return hostStart.start({mode:'pvp',category,difficulty,count,options:{visibility:creationVisibility ?? 'private'},...(invitedFriendId ? {inviteTo:invitedFriendId} : {})});
   };
 
-  const joinGame = async (idToJoin: string) => {
+  const joinGame = async (idToJoin: string, source:'manual'|'link'='manual') => {
     if (!user) return;
     setLoading(true); setGenerationError('');
     try {
       const id = idToJoin.trim();
       if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid game ID.');
-      await gameProgress.joinGame(id, user.uid, 'pvp');
+      await gameProgress.joinGame(id, user.uid, 'pvp',source);
       setGameId(id);
     } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not join this game.'); }
     finally { setLoading(false); }
@@ -218,37 +240,6 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     if (saving || showExplanation || !gameData || !gameData.questions || !user || !gameId) return;
     if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
     setSelectedOption(index);
-  };
-
-  const findMatch = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const matches = await loadWaitingGames(db, user.uid, 'pvp', category, difficulty);
-
-      let joined = false;
-      for (const data of matches) {
-        if (data.players.length < 2 && !data.players.includes(user.uid)) {
-          try {
-            await gameProgress.joinGame(data.id, user.uid, 'pvp');
-            setGameId(data.id);
-            joined = true;
-            break;
-          } catch (e) {
-            console.error('Failed to join', e);
-          }
-        }
-      }
-
-      if (!joined) {
-        await createGame(); // Make new game if no suitable one found
-      }
-    } catch (error) {
-       console.error(error);
-       await createGame();
-    } finally {
-      setLoading(false);
-    }
   };
 
   const checkAnswer = async () => {
@@ -277,28 +268,22 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   };
 
   const leaveLobby = async () => {
-    if (!gameId || leaving) return;
+    if (!user || !gameId || leaving) return;
     setLeaving(true); setSaveError('');
-    try { await gameProgress.leaveGame(gameId); setGameId(null); setGameData(null); }
+    try { await gameProgress.leaveGame(gameId,user.uid); setGameId(null); setGameData(null); setCreationVisibility(null); }
     catch (error) { setSaveError(error instanceof Error ? error.message : 'Could not leave the lobby. Please retry.'); }
     finally { setLeaving(false); }
   };
 
-  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id).then(g=>{if(g.mode!=='pvp')throw Error('This round belongs to another mode.');setGameId(id);}).catch(e=>setGenerationError(e.message));});
+  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id,user?.uid).then(g=>{if(g.mode!=='pvp')throw Error('This round belongs to another mode.');setGameId(id);}).catch(e=>setGenerationError(e.message));});
   const capturedFeedbackIndex=showExplanation?currentIndex:gameData?.status==='finished'&&lastAnswer?gameData.questions?.findIndex(q=>!!q.problemId&&q.problemId===lastAnswer.question.problemId)??-1:-1;
   const captureStatus=useReplayCapture(user?.uid,gameId,gameData?.replayVersion,{index:!loading&&gameData?.status==='active'&&gameStarted&&currentIndex<(gameData.questions?.length||0)?currentIndex:null,selectedOption,feedbackIndex:capturedFeedbackIndex>=0?capturedFeedbackIndex:null,serverEventId:gameData?.answers?.[user?.uid||'']?.[capturedFeedbackIndex]?.serverEventId,finished:gameData?.status==='finished',settled:!saving});
 
   if (authLoading) return <main className="p-8 text-center text-zinc-400" role="status">Loading your account…</main>;
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-zinc-400">Please sign in to play.</p>
-      </div>
-    );
-  }
+  if (!user) return <LobbySignIn mode="pvp" />;
 
-  if (loading) {
+  if (loading || hostStart.loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <RefreshCw className="w-12 h-12 text-red-500 animate-spin mb-4" />
@@ -307,19 +292,22 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     );
   }
 
+  if (!gameId && hostStart.pending) return <main className="mx-auto max-w-xl px-4 py-12"><PendingRoundStart state={hostStart}/>{hostStart.error && <p role="alert">{hostStart.error}</p>}</main>;
+  if (!gameId && !creationVisibility) return <LobbyChoice mode="pvp" error={generationError || hostStart.error} onPrivate={() => setCreationVisibility('private')} onJoin={joinGame} />;
+
   if (!gameId) {
     return (
       <div className="min-h-screen max-w-3xl mx-auto px-4 py-12 flex flex-col justify-center">
-        <a href="/" className="text-zinc-400 hover:text-white flex items-center gap-2 mb-12 w-fit transition-colors">
-          <Home className="w-5 h-5" /> Back to Dashboard
-        </a>
+        <button onClick={() => { if (creationVisibility === 'public') location.assign('/play/pvp/lobbies'); else setCreationVisibility(null); }} className="mb-8 inline-flex min-h-11 w-fit items-center gap-2 text-zinc-400 hover:text-white">
+          <Home className="h-4 w-4" /> Back to {creationVisibility === 'public' ? 'public catalog' : 'PvP lobbies'}
+        </button>
 
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium mb-4">
             <Swords className="w-4 h-4" />
             <span>PvP</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">PvP</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">{creationVisibility === 'public' ? 'Public Lobby' : 'Private Lobby'}</h1>
           <p className="text-zinc-400 mt-4 text-lg">Challenge another player in a head-to-head calculus battle.</p>
 
           {invitedFriendId && (
@@ -332,7 +320,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           )}
         </div>
 
-        {generationError && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError}</p>}
+        {(generationError || hostStart.error) && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError || hostStart.error}</p>}
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 sm:p-10 space-y-8 backdrop-blur-sm shadow-xl">
           <div className="space-y-6">
             <div>
@@ -452,52 +440,9 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-800/50 flex gap-4">
-            <button
-              onClick={findMatch}
-              className="flex-1 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-red-500/20 flex items-center justify-center gap-2 group"
-            >
-              <Users className="w-5 h-5 fill-current" />
-              <span>Find Match</span>
-            </button>
-            <button
-              onClick={createGame}
-              className="px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] flex items-center justify-center gap-2 group"
-              title="Create Custom / Invite"
-            >
-              <Swords className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-800/50"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-zinc-900/50 text-zinc-500 font-bold uppercase tracking-wider">OR JOIN EXISTING</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-zinc-300 mb-3 uppercase tracking-wider">Game ID</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                id="join-id"
-                placeholder="Enter Game ID..."
-                className="min-w-0 flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 font-mono transition-all"
-              />
-              <button
-                onClick={() => {
-                  const input = document.getElementById('join-id') as HTMLInputElement;
-                  if (input.value) joinGame(input.value);
-                }}
-                className="px-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-2xl font-bold transition-all hover:scale-[1.02]"
-              >
-                Join
-              </button>
-            </div>
-          </div>
+          <button onClick={createGame} className="min-h-12 w-full rounded-2xl bg-red-600 px-6 py-4 text-lg font-bold text-white hover:bg-red-500">
+            Create {creationVisibility} lobby
+          </button>
         </div>
       </div>
     );
@@ -506,26 +451,23 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   if (gameData?.status === 'waiting') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           <Users className="w-20 h-20 text-red-500 mx-auto mb-6 animate-pulse" />
           <h2 className="text-3xl font-bold mb-2">Waiting for Opponent...</h2>
+          <p className="mt-2 mb-4 text-sm text-zinc-500">{gameData.visibility === 'public' ? 'Public Lobby · Listed in the live catalog' : 'Private Lobby · Join by code or invitation'}</p>
+          {presenceError && <p role="status" className="mb-4 text-sm text-amber-300">{presenceError}</p>}
           <p className="text-zinc-400 mb-6">Share this Game ID with your friend:</p>
 
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-6 font-mono text-base sm:text-xl break-all text-red-400 select-all">
             {gameId}
           </div>
 
-          {invitedFriendId && (
-            <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-              <p className="text-sm text-indigo-300 font-medium">
-                Invite sent! Waiting for them to join...
-              </p>
-            </div>
-          )}
+          {hostInvitation?.room === gameId && hostInvitation && <div className="mb-6 rounded-xl border border-indigo-500/20 p-4" role="status">
+            <p>{hostInvitation.message}</p>
+            {hostInvitation.retry && user && <button className="min-h-11 underline" onClick={() => inviteFromStart(gameId,hostInvitation.to,user.uid)}>Retry invitation</button>}
+          </div>}
 
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-8 text-left space-y-2">
             <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3">Game Settings</h3>
@@ -548,7 +490,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           <button disabled={leaving} onClick={leaveLobby} className="w-full min-h-11 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-bold transition-colors disabled:opacity-50">
             {leaving ? 'Leaving…' : 'Cancel'}
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -566,9 +508,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           {isWinner ? (
@@ -677,7 +617,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
               Back to Dashboard
             </a>
           </div>
-        </motion.div>
+        </div>
         <Chat gameId={gameId!} messages={gameData.messages || []} />
       </div>
     );
@@ -686,18 +626,14 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
   if (gameData?.status === 'active' && countdown !== null) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative">
-        <AnimatePresence mode="wait">
-          <motion.div
+        
+          <div
             key={countdown}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.5, opacity: 0 }}
-            transition={{ duration: 0.5 }}
             className="text-8xl font-bold text-red-500 font-mono"
           >
             {countdown > 0 ? countdown : 'GO!'}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        
 
       </div>
     );
@@ -727,19 +663,16 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     return (
       <div className="min-h-screen max-w-4xl mx-auto px-4 py-12 relative overflow-x-clip">
         <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError} />
-        <AnimatePresence>
+        
           {xpEarned !== null && (
-             <motion.div
-               initial={{ opacity: 0, y: 20, scale: 0.8 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: -20 }}
+             <div
                className="pointer-events-none fixed top-24 right-10 md:right-20 bg-amber-500/20 border border-amber-500/50 text-amber-500 font-bold px-4 py-2 rounded-xl flex items-center gap-2 z-50 shadow-lg"
              >
                <span className="text-xl">+</span>
                <span className="text-2xl">{xpEarned} XP</span>
-             </motion.div>
+             </div>
           )}
-        </AnimatePresence>
+        
 
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 items-center mb-8 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
           <div className="min-w-0 flex items-center justify-center gap-4">
@@ -748,16 +681,13 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                 <RankIcon rated={hasRating(profile)} rating={myRating} className="w-3 h-3 shrink-0" />
                 <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">You</p>
               </div>
-              <motion.p
+              <p
                 key={myScore}
-                initial={{ scale: 1.5, opacity: 0, y: -10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                 className="text-2xl font-bold font-mono inline-block"
                 style={{ color: playerColor }}
               >
                 {myScore}
-              </motion.p>
+              </p>
             </div>
           </div>
 
@@ -771,32 +701,25 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                 <p title={opponentName} className="min-w-0 truncate text-xs text-zinc-500 uppercase font-bold tracking-wider">{opponentName}</p>
                 <RankIcon rated={ratedFor(opponentUid || '')} rating={opponentRating} className="w-3 h-3 shrink-0" />
               </div>
-              <motion.p
+              <p
                 key={opponentScore}
-                initial={{ scale: 1.5, opacity: 0, y: -10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                 className="text-2xl font-bold font-mono inline-block"
                 style={{ color: opponentUid ? (playerProfiles[opponentUid]?.color || '#3b82f6') : '#3b82f6' }}
               >
                 {opponentScore}
-              </motion.p>
+              </p>
             </div>
           </div>
         </div>
 
         {q && (
-          <AnimatePresence mode="wait">
-            <motion.div
+          
+            <div
               key={currentIndex}
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
-              transition={{ duration: 0.3 }}
               className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 sm:p-8 mb-8"
             >
               <div className="text-xl sm:text-2xl mb-6 sm:mb-12 w-full overflow-x-auto py-4">
-                <MathDisplay math={q.latexProblem} block />
+                <ProblemStatement math={q.latexProblem} legacy={q.legacy} /><ContentAttribution credit={q.contentNotice} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -838,9 +761,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
               </div>
 
               {!showExplanation && selectedOption !== null && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                <div
                   className="mt-8 flex justify-center"
                 >
                   <button
@@ -849,16 +770,14 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                   >
                     Confirm Answer <CheckCircle2 className="w-5 h-5" />
                   </button>
-                </motion.div>
+                </div>
               )}
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          
         )}
 
         {showExplanation && q && (
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+          <div
             className={`p-4 sm:p-6 rounded-2xl border mb-8 ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -877,6 +796,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
               <h4 className="text-zinc-300 font-medium mb-2">Explanation:</h4>
               <div className="text-zinc-400 leading-relaxed w-full flex flex-col gap-4">
                 <SolutionSteps steps={q.explanation} />
+                  <ContentAttribution credit={q.contentAttribution} />
               </div>
             </div>
 
@@ -889,7 +809,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
         <Chat gameId={gameId!} messages={gameData.messages || []} />
       </div>

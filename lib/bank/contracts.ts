@@ -4,14 +4,25 @@ export interface ProblemReference {
   contentHash: string;
   bankRelease: string;
   familyId: string;
+  /** Private, reviewed mathematical identity across revisions/renamed copies. */
+  lineageId?: string;
+  constructionFamilyId?: string;
   /** Stable IDs in the actual displayed order; never identifies the answer. */
-  choiceOrder: string[];
+  choiceOrder?: string[];
+  responseFormat?: 'multiple-choice'|'free-response';
+  answerContractId?:string;
+  answerContractHash?:string;
+  graderVersion?:string;
+  parserVersion?:string;
 }
+export type VersionedProblemReference =
+ | (ProblemReference & {responseFormat:'multiple-choice';choiceOrder:string[]})
+ | (ProblemReference & {responseFormat:'free-response';choiceOrder?:never;answerContractId:string;answerContractHash:string;graderVersion:string;parserVersion:string});
 export interface RoundSnapshot {
-  schemaVersion: 1 | 2;
-  selectionPolicy: 'family-uniform-v1' | 'exposure-weighted-v2';
+  schemaVersion: 1 | 2 | 3;
+  selectionPolicy: 'family-uniform-v1' | 'exposure-weighted-v2' | 'free-response-capped-v1' | 'joint-capped-v1' | 'joint-capped-v2' | 'unrecorded-v1';
   relaxation: 'none' | 'recent-families' | 'recent-problems' | 'family-cap';
-  diagnostics?: SelectionDiagnostics;
+  diagnostics?: RoundSelectionDiagnostics;
   questions: (ProblemReference & { ordinal: number })[];
 }
 export interface BankProblem {
@@ -59,6 +70,30 @@ export interface SelectionDiagnostics {
   probes: number;
   statements: number;
   catalogFamilies: number;
+  catalogPools?: number;
+  fallbackRows?: number;
   exhaustedInventory: boolean;
-  reasons: ('family-cap-impossible' | 'recent-items-exhausted' | 'candidate-sampling-limit' | 'adjacency-unavoidable')[];
+  reasons: ('family-cap-impossible' | 'recent-items-exhausted' | 'unseen-family-capacity-exhausted' | 'candidate-sampling-limit' | 'adjacency-unavoidable')[];
 }
+export interface FreeResponseSelectionDiagnostics {
+  policy:'free-response-capped-v1';
+  candidateCount:number; statements:number; payloadsDecoded:number;
+  catalogFamilies:number; reservedRounds:number;
+}
+export interface JointSelectionDiagnostics {
+  policy:'joint-capped-v1' | 'joint-capped-v2';
+  candidateCount:number; catalogFamilies:number; statements:number; payloadsDecoded:number;
+  requiredRounds:number; remainingRounds:number;
+  initialCatalogBinding:string; finalCatalogBinding:string; remainingRank:number[];
+  algorithm:{
+    candidateVisits:number; cutChecks:number; scoreEvaluations:number; familySummaryVisits:number;
+    regimeRebuilds:number; fallbackFamilyScans:number; numericTreeRebuilds:number; summaryScoreVisits:number;
+    aggregateCount:number; rounds:number; relaxation:'none'; verticesPerSide:number;
+    regularizedEdges:number; augmentVisits:number; currentColor:number; rawRows:number; lineages:number;
+  };
+}
+export type RoundSelectionDiagnostics=SelectionDiagnostics|FreeResponseSelectionDiagnostics|JointSelectionDiagnostics;
+
+/** Credit and license are public; detailed modifications can mention a solution. */
+export type ContentNotice = Omit<ContentCredit,'modifications'>;
+export interface ContentCredit { credit:string; sourceUrl:string; sourceItem:string; license:string; licenseUrl:string; modifications:string }

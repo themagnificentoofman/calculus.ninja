@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import {ExperimentalSettings} from '@/components/ExperimentalSettings';
 import { useAuth } from '@/components/AuthProvider';
-import { motion } from 'motion/react';
+import {profileSaveMessage} from '@/lib/firestore-errors';
 import { Settings, User, Image as ImageIcon, ArrowLeft, Save, Shield, Bell, Volume2 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -14,8 +15,14 @@ export default function SettingsPage() {
   const [photoURL, setPhotoURL] = useState('');
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [includeLegacyProblems, setIncludeLegacyProblems] = useState(false);
   
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const hasUnsavedChanges = !!profile && (
+    displayName !== (profile.displayName || '') || handle !== (profile.handle || '') ||
+    photoURL !== (profile.photoURL || '') || notifications !== (profile.settings?.notifications ?? true) ||
+    soundEnabled !== (profile.settings?.soundEnabled ?? true) ||
+    includeLegacyProblems !== (profile.settings?.includeLegacyProblems === true)
+  );
   const [loading, setLoading] = useState(false);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
   const [googleMessage, setGoogleMessage] = useState({ text: '', type: '' });
@@ -32,7 +39,8 @@ export default function SettingsPage() {
       setPhotoURL(profile.photoURL || '');
       setNotifications(profile.settings?.notifications ?? true);
       setSoundEnabled(profile.settings?.soundEnabled ?? true);
-      setHasUnsavedChanges(false);
+      setIncludeLegacyProblems(profile.settings?.includeLegacyProblems === true);
+      
     }
   }, [user, profile, authLoading, hasUnsavedChanges]);
 
@@ -64,16 +72,17 @@ export default function SettingsPage() {
 
   const handleFieldChange = (setter: any) => (e: any) => {
     setter(e.target.value);
-    setHasUnsavedChanges(true);
+    
   };
 
   const handleCheckboxChange = (setter: any) => (e: any) => {
     setter(e.target.checked);
-    setHasUnsavedChanges(true);
+    
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || !hasUnsavedChanges) return;
     setLoading(true);
     setMessage({ text: '', type: '' });
     
@@ -85,13 +94,14 @@ export default function SettingsPage() {
         settings: {
           ...profile?.settings,
           notifications,
-          soundEnabled
+          soundEnabled,
+          includeLegacyProblems
         }
       });
       setMessage({ text: 'Profile updated successfully!', type: 'success' });
-      setHasUnsavedChanges(false);
+      
     } catch (error: any) {
-      setMessage({ text: error.message || 'Failed to update profile', type: 'error' });
+      setMessage({ text: profileSaveMessage(error), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -140,9 +150,7 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-6">
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+            <section
               className="dark:bg-zinc-900/40 bg-white border dark:border-zinc-800/50 border-zinc-200 rounded-3xl p-5 sm:p-6 shadow-sm"
             >
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -223,7 +231,7 @@ export default function SettingsPage() {
                                 ctx?.drawImage(img, 0, 0, width, height);
                                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                                 setPhotoURL(dataUrl);
-                                setHasUnsavedChanges(true);
+                                
                               };
                               img.src = event.target?.result as string;
                             };
@@ -238,20 +246,17 @@ export default function SettingsPage() {
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                    disabled={loading || !hasUnsavedChanges}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-500"
                   >
                     <Save className="w-4 h-4" />
-                    Save Profile
+                    Save Changes
                   </button>
                 </div>
               </form>
-            </motion.section>
+            </section>
 
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+            <section
               className="dark:bg-zinc-900/40 bg-white border dark:border-zinc-800/50 border-zinc-200 rounded-3xl p-5 sm:p-6 shadow-sm"
             >
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -286,14 +291,11 @@ export default function SettingsPage() {
                   </div>
                 {googleMessage.text && <p role={googleMessage.type === 'error' ? 'alert' : 'status'} className={`text-sm ${googleMessage.type === 'error' ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{googleMessage.text}</p>}
               </div>
-            </motion.section>
+            </section>
           </div>
 
           <div className="space-y-6">
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+            <section
               className="dark:bg-zinc-900/40 bg-white border dark:border-zinc-800/50 border-zinc-200 rounded-3xl p-5 sm:p-6 shadow-sm"
             >
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -338,7 +340,8 @@ export default function SettingsPage() {
                   </div>
                 </label>
               </div>
-            </motion.section>
+            </section>
+            <ExperimentalSettings enabled={includeLegacyProblems} onChange={enabled => { setIncludeLegacyProblems(enabled);  }} />
           </div>
         </div>
       </div>

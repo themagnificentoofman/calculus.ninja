@@ -1,0 +1,27 @@
+# Free-response content admission
+
+Status: implemented local record/evidence gates and private immutable storage foundations; no admitted production record or active FR release yet.
+
+A free-response task has its own immutable schema-3 identity. A conversion keeps a complete source-MC identity and shares its mathematical and construction lineage, while retaining the MC difficulty separately. Its reviewed served statement, assumptions and solution are hashed before constructing its private answer contract. The contract binds that task hash, presentation and FR difficulty. Its hash excludes only its own `contractHash` field. The final record hash includes both objects. This avoids a circular content/contract hash.
+
+The mathematical review binds the task hash, answer object and finite fixtures. Its byte digest goes in the contract. A subsequent item review binds the completed record and the exact checker source; this review's digest is registered externally. The production registry starts empty. A valid reference, a research report, or `referenceVerified: true` cannot add a record to it.
+
+`scripts/bank/free-response.mjs` requires the registered hashes, reads the actual evidence bytes, checks independent authorship and item-level dispositions, and executes all finite fixtures with strict formula rendering. The gate rejects changed content, stale checker source, unknown types, lost source lineage and incomplete reviews. Mathematical review remains a reasoned independent review, not a claim of formal proof. Mechanical checks cannot replace it.
+
+Private evidence is addressed by SHA-256 as `<hash>.json` in the operator's evidence directory. The hash-only registry is safe to track with the app; expected answers and question-to-technique mappings stay out of client bundles and public review documents. Evidence artifacts are append-only. An adapted task also needs an exact permission artifact and its public credit.
+
+Legacy FR admission is currently unavailable. The existing empty legacy allowlist and default-off setting remain in force; a conversion cannot remove legacy origin or bypass withdrawals. Supporting a future legacy FR item requires a deliberate extension of the exact-revision gate, not toggling a flag.
+
+The additive `0008_free_response_storage.sql` migration, private operator `free-response-storage.mjs`, and Worker-compatible decoder preserve the exact canonical task/contract pair in bounded compressed storage. Repeating an identical local write is idempotent. A conflicting task hash requires a new task revision; a changed grading contract requires a new contract identity. Immutable rows and admission receipts cannot be rewritten or deleted through the schema. Export reconstructs historical content even if its source later becomes unavailable; export does not authorize serving it.
+
+For an MC conversion, local preparation decodes the actual source and checks its complete bound identity, MC difficulty, reviewed lineage, current composed membership, approval, exclusions and family withdrawals. Mutable eligibility is checked again in the write transaction. This is an import/preparation check, not a substitute for the future runtime eligibility join. Local tests use explicitly isolated synthetic records and registries. No production schema or data has been changed, and independent storage review v2 passes 22 probes. A later initializer-only amendment still awaits independent confirmation.
+
+Remaining integration: source-bound batch export/import and reconstruction through the budgeted release workflow, runtime eligibility before counts/probes/reservations/fallback, bounded selection and capacity gates, build enforcement, and the reviewed finite content release. This document does not certify those pending steps.
+
+The reviewed storage amendment detaches and freezes the task, contract, registry and evidence results before asynchronous work or callbacks. It serializes that same immutable snapshot; a callback cannot replace the reviewed object before storage. BEFORE INSERT guards reject every uniqueness collision even under INSERT OR REPLACE with recursive triggers disabled. Historical export resolves the database-local MC reference against the actual immutable source payload while preserving withdrawn history. Existing local schemas must match the exact reviewed table/index/trigger definitions; the initializer never silently upgrades an older draft schema.
+
+### Assessment holds after exposure review
+
+When item-level review finds an answer-bearing historical surface, retain the source and review and record the decision against the immutable FR task revision. A different contract for the same revision inherits the hold. A registry containing a held revision fails policy compilation, private content preparation, and new assessment selection. A future revision needs its own independent evidence. Historical grading and replay continue to use their saved contracts.
+
+The two existing revisions of the square-root recurrence conversion are excluded from assessment. The active MC source discloses the exact answer, nine other active MC tasks teach the same construction, and eight older replay corrections preserve its worked derivation. One of those corrections gives the exact target answer. The classification and literal mathematical checks remain valid within their original scope. This disposition contributes zero unseen items. The source bindings and per-sibling results are in the transfer's `outputs/m4-research/cloud-recurrence-disposition-v1/result.json`.

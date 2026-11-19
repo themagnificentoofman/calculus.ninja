@@ -1,8 +1,10 @@
 'use client';
 
+import {StudyLearnerContext} from '@/lib/study/learner-context';
 import {usePathname} from 'next/navigation';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '@/firebase';
+import { startProfileSession } from '@/lib/profile-session';
 import { onAuthStateChanged, User, type UserInfo, signInWithPopup, GoogleAuthProvider, signOut, signInWithEmailAndPassword, updateProfile as updateAuthProfile } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { apiRequest, gameProgress } from '@/lib/game-session';
@@ -25,6 +27,7 @@ interface UserProfile {
   topicRatedGames?: Record<string, number>;
   answeredQuestions?: number;
   correctAnswers?: number;
+  freeResponseStats?: {rounds?:number;finalized?:number;graded?:number;correct?:number;skipped?:number;revealed?:number;ungraded?:number};
   createdAt: string;
   xp?: number;
   topicXp?: Record<string, number>;
@@ -33,6 +36,7 @@ interface UserProfile {
     theme?: string;
     notifications?: boolean;
     soundEnabled?: boolean;
+    includeLegacyProblems?: boolean;
   };
   friends?: string[];
   lastActive?: number;
@@ -87,20 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLinkedProviders([...(firebaseUser?.providerData || [])]);
       if (!firebaseUser) { setLoading(false); return; }
       const userRef = doc(db, 'users', firebaseUser.uid);
-      try {
-        if(!readOnlyReplay) await apiRequest('profile', {});
-        if (current !== revision) return;
-        // Keep XP/rating live; never delete or subtract legacy earned progress.
-        stopProfile = onSnapshot(userRef, snapshot => {
-          if (current !== revision) return;
-          if (snapshot.exists()) setProfile(snapshot.data() as UserProfile);
-          setLoading(false);
-        }, error => { if (current === revision) { setProfileError('Your profile could not be refreshed.'); setLoading(false); } });
-        if(!readOnlyReplay) stopResults = gameProgress.watchPendingResults(firebaseUser.uid, error => console.error('Pending result sync failed', error));
-      } catch (error) {
-        console.error('Profile setup failed', error);
-        if (current === revision) { setLoading(false); setProfileError('Your profile could not be loaded.'); }
-      }
+      stopProfile = startProfileSession<UserProfile>({
+        subscribe: (next, failed) => onSnapshot(userRef, snapshot => next(snapshot.exists() ? snapshot.data() as UserProfile : null), failed),
+        bootstrap: readOnlyReplay ? undefined : () => apiRequest('profile', {}),
+        profile: value => { if (current === revision) setProfile(value); },
+        loading: value => { if (current === revision) setLoading(value); },
+        error: value => { if (current === revision) setProfileError(value); },
+        ready: () => { if (current === revision) stopResults = gameProgress.watchPendingResults(firebaseUser.uid, error => console.error('Pending result sync failed', error)); },
+      });
     });
     return () => { revision++; unsubscribe(); stopProfile(); stopResults(); };
   }, [retry,readOnlyReplay]);
@@ -108,7 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (readOnlyReplay || !user || profile?.uid !== user.uid) return;
 
+    let lastAttempt = Date.now();
     const updateLastActive = async () => {
+      if (document.hidden || !navigator.onLine || Date.now() - lastAttempt < 120000) return;
+      lastAttempt = Date.now();
       try {
         await apiRequest('profile', {});
       } catch (error) {
@@ -117,13 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Update immediately on mount/login
-    updateLastActive();
-
-    // Update every minute
-    const interval = setInterval(updateLastActive, 60000);
-
-    return () => clearInterval(interval);
+    // Bootstrap already updates presence; avoid a duplicate write on mount.
+    const interval = setInterval(updateLastActive, 120000);
+    document.addEventListener('visibilitychange', updateLastActive);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', updateLastActive); };
   }, [user, profile?.uid,readOnlyReplay]);
 
   useEffect(() => {
@@ -197,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, linkedProviders, profile, loading, login, logout, updateUserProfile, signupWithEmail, loginWithEmail, linkGoogleAccount }}>
       {profileError && <div role="alert" className="border-b border-red-500/30 bg-red-950 px-4 py-3 text-center text-sm text-red-100">{profileError} <button onClick={() => setRetry(value => value + 1)} className="ml-3 min-h-11 rounded-lg px-3 font-bold underline">Retry</button></div>}
-      {children}
+      <StudyLearnerContext.Provider value={{uid:user?.uid??null,loading:loading&&!user}}>{children}</StudyLearnerContext.Provider>
     </AuthContext.Provider>
   );
 }

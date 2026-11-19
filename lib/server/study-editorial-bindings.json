@@ -1,0 +1,46 @@
+{
+  "limit-foundations": {
+    "lessonContentHash": "9eed6be37de419c583fe0c6426655afa113d8c2405a8a46138f021cfbf6f4d77",
+    "editorialHash": "0711714c1976100cf8c456170a0463267ec877f47827e8c69380c2bdcfc1589d"
+  },
+  "ftc": {
+    "lessonContentHash": "4db8adb33267a174594e85f2aa9c6e8959b0d37943c1dfc05d1793082560bee9",
+    "editorialHash": "3d63b5661761494cdbf17ccbae4e97e1908993450824f510f6526e6c9629c7cb"
+  },
+  "substitution": {
+    "lessonContentHash": "15d3bf0b608bf5194a10dff8eb494e11a72f8ddebc26f4bcff1556905f92ea10",
+    "editorialHash": "c5c3272d4aeea3fe5546ebc987dd1d35f3861b08812bf42e1f73856290718ded"
+  },
+  "nonuniform": {
+    "lessonContentHash": "7cec9be185b899480afcf16fb27c13f2fefd3c3019837eeeb9129f7a4a2f47d7",
+    "editorialHash": "3e7ed8ee611b6fa70c43b517d8ecf6f6e80eb32b975a84438135deda715d67de"
+  },
+  "fourier-transforms": {
+    "lessonContentHash": "f79ca6b07e4eca6e731d1938a5abf5e88a1c1520049b19cce26ab395e032c6d9",
+    "editorialHash": "709d6df0b0eec7020ce49a6f5a85c7b81c29fe72a39efe9da6b68919487f121e"
+  },
+  "spectral": {
+    "lessonContentHash": "3370d68c1cb6d7aa6a735775a6a70d230fdfc58d698597531b0f01ee3e80b278",
+    "editorialHash": "e2ed20432ba9fe8073af1fc0a4fef4b3c4ce128c5c0778965951bf3831523522"
+  },
+  "variational": {
+    "lessonContentHash": "dba444686f117bd7d468d1b7e1c6119dc5121f61c1aa7c8b16f91f5228c5c1d3",
+    "editorialHash": "7b5409d28ade15fd0ca0c470a2f8d1b79054eff9bf492f7c77d0f82c227fc4bc"
+  },
+  "parameter-integrals": {
+    "lessonContentHash": "9ee773195ce8d0a97d6a837502280e0af43bf7f7c237f81b0bd84a58a8146fdf",
+    "editorialHash": "02a80c667daaf841f7500c45954181593dcea417412acb29203fe0d06103d5fd"
+  },
+  "coordinates": {
+    "lessonContentHash": "52e9c4f1d470edf4e39b6ebfd7c7483e96fb296a920934e60ec7d79252fe2f97",
+    "editorialHash": "c2604652f116fdef4dff53c59cd625ad52fc810ffbbb6c95bfb6285b801eb3d4"
+  },
+  "taylor-remainders": {
+    "lessonContentHash": "2aefe73af9fa2a90a1fea09a43991fec62926ceaca888bd96c768ba6bd2b2754",
+    "editorialHash": "3df9757f41aff852fffb77fc90936259e11f7d2d0d8412605857e5d1bc268967"
+  },
+  "slope-fields": {
+    "lessonContentHash": "42bf35d380f8a11ccd5e17a39b9692af9b91a9137fbbbe4f1c1e23f11ce0fc1a",
+    "editorialHash": "2798eff2dd0b5d9fd445b0d0ab2cae3f45ad35de4af921b051f60510546ffbb6"
+  }
+}

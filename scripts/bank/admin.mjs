@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Operator-only CLI: local private files or D1 SQL export; never included in Worker/client bundles.
+import {indexedPracticeTags} from '../../lib/bank/practice-technique-tags.mjs';
+import {contentAttribution} from '../../lib/bank/content-attribution.mjs';
 import {presentBankProblem} from '../../lib/server/solution-presentation.mjs';
 import {assertSolutionQuality} from '../../lib/bank/solution-quality.mjs';
 import { spawnSync } from 'node:child_process';
@@ -31,6 +33,7 @@ export function validateRecord(p) {
     const verified=spawnSync(existsSync(resolve(root,'.bank-venv/bin/python'))?resolve(root,'.bank-venv/bin/python'):'python3',['-c',"import sys,json;sys.path.insert(0,'scripts/bank');from content_pipeline import verify;verify(json.load(sys.stdin))"],{cwd:root,input:JSON.stringify(p),encoding:'utf8'});
     if(verified.status!==0)throw Error('Standalone solution certificate failed independent reconstruction');
   }
+  contentAttribution(p);
   assertSolutionQuality(presentBankProblem(p));
   return p;
 }
@@ -71,7 +74,7 @@ export async function importRelease(db,manifestPath) {
     try {
       insertProblem(db,p)? imported++:duplicates++;
       if(db.prepare('SELECT state FROM bank_publication WHERE problem_id=? AND revision=?').get(p.problemId,p.problemRevision)?.state!=='approved') throw Error('Release contains a retired revision');
-      for(const tag of ['*',...new Set(p.techniqueTags)]) {
+      for(const tag of ['*',...new Set(indexedPracticeTags(p))]) {
         const key=JSON.stringify([p.topic,p.difficulty,tag,p.familyId]),slot=slotCounts.get(key)||0;
         const args=[manifest.releaseId,p.topic,p.difficulty,tag,p.familyId,slot,p.problemId,p.problemRevision];
         const existing=db.prepare('SELECT problem_id,revision FROM bank_slots WHERE release_id=? AND topic=? AND difficulty=? AND tag=? AND family_id=? AND slot=?').get(...args.slice(0,6));

@@ -1,0 +1,1372 @@
+{
+  "accumulation/area-with-two-crossings": {
+    "exerciseRevision": 1,
+    "label": "signed area",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/easy"
+    ],
+    "tag": "signed-area"
+  },
+  "algebra/rational-equality": {
+    "defaultScope": [
+      "limits",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "domain restrictions",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/easy"
+    ],
+    "tag": "domain-restrictions"
+  },
+  "analysis/unbounded-domain": {
+    "exerciseRevision": 1,
+    "label": "uniform convergence",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/olympiad",
+      "series/hard"
+    ],
+    "tag": "uniform-convergence"
+  },
+  "approximation/combine-sampled-enclosures": {
+    "exerciseRevision": 1,
+    "label": "numerical error",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/medium"
+    ],
+    "tag": "numerical-error"
+  },
+  "approximation/corner-breaks-curvature-bound": {
+    "exerciseRevision": 1,
+    "label": "quadrature error",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/hard"
+    ],
+    "tag": "quadrature-error"
+  },
+  "auxiliary-functions/second-order-interior-relation": {
+    "exerciseRevision": 1,
+    "label": "mean value theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/hard",
+      "differentiation/olympiad"
+    ],
+    "tag": "mean-value-theorem"
+  },
+  "auxiliary-functions/three-sample-identity": {
+    "exerciseRevision": 1,
+    "label": "mean value theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/olympiad",
+      "mixed/olympiad"
+    ],
+    "tag": "mean-value-theorem"
+  },
+  "beta-gamma/decreasing-exponential-beta": {
+    "exerciseRevision": 1,
+    "label": "substitution",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "substitution"
+  },
+  "beta-gamma/rational-tail-parameter-range": {
+    "exerciseRevision": 1,
+    "label": "Beta integrals",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/hard"
+    ],
+    "tag": "beta-integral"
+  },
+  "boundary-data/forced-endpoint-fit": {
+    "exerciseRevision": 1,
+    "label": "boundary value problems",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "boundary-value-problems"
+  },
+  "boundary-data/frequency-compatibility": {
+    "exerciseRevision": 1,
+    "label": "resonance",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "ode/medium"
+    ],
+    "tag": "resonance"
+  },
+  "complex/square-root-complex": {
+    "defaultScope": [
+      "ode",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "complex roots",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "complex-roots"
+  },
+  "convergence-tests/alternating-two-exponents": {
+    "defaultScope": [
+      "series",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "alternating series",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/medium"
+    ],
+    "tag": "alternating-series"
+  },
+  "convergence-tests/factorial-in-two-positions": {
+    "exerciseRevision": 1,
+    "label": "the ratio test",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/medium"
+    ],
+    "tag": "ratio-test"
+  },
+  "coordinates-spatial/bounded-half-hemisphere-two-coordinates": {
+    "exerciseRevision": 1,
+    "label": "cylindrical coordinates",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "cylindrical-coordinates"
+  },
+  "coordinates-spatial/cartesian-tetrahedral-slices": {
+    "exerciseRevision": 1,
+    "label": "iterated integration",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "iterated-integration"
+  },
+  "coordinates-spatial/radial-singularity-threshold": {
+    "exerciseRevision": 1,
+    "label": "improper integrals",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/hard",
+      "multivariable/hard"
+    ],
+    "tag": "improper-integrals"
+  },
+  "coordinates/elliptic-disk-moment": {
+    "exerciseRevision": 1,
+    "label": "change of variables",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "change-of-variables"
+  },
+  "coordinates/folded-rectangle": {
+    "exerciseRevision": 1,
+    "label": "change of variables",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/olympiad"
+    ],
+    "tag": "change-of-variables"
+  },
+  "coordinates/positive-product-ratio-region": {
+    "exerciseRevision": 1,
+    "label": "change of variables",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "change-of-variables"
+  },
+  "derivative-geometry/horizontal-normal-remainder": {
+    "exerciseRevision": 1,
+    "label": "tangent lines",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/hard",
+      "differentiation/medium"
+    ],
+    "tag": "tangent-lines"
+  },
+  "derivative-geometry/rectangle-two-rates": {
+    "exerciseRevision": 1,
+    "label": "related rates",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/medium"
+    ],
+    "tag": "related-rates"
+  },
+  "derivative-meaning/reciprocal-rate": {
+    "defaultScope": [
+      "differentiation",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "reciprocal rule",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/easy"
+    ],
+    "tag": "reciprocal-rule"
+  },
+  "derivative-rules/root-exponential-quotient": {
+    "defaultScope": [
+      "differentiation",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "quotient rule",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/easy"
+    ],
+    "tag": "quotient-rule"
+  },
+  "derivative-shape/corner-and-endpoints": {
+    "exerciseRevision": 1,
+    "label": "global extrema",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/medium",
+      "mixed/hard"
+    ],
+    "tag": "global-extrema"
+  },
+  "derivative-shape/unique-root-residual": {
+    "exerciseRevision": 1,
+    "label": "mean value theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/medium"
+    ],
+    "tag": "mean-value-theorem"
+  },
+  "existence-uniqueness/bounded-state-domain-boundary": {
+    "defaultScope": [
+      "ode",
+      "hard"
+    ],
+    "exerciseRevision": 1,
+    "label": "continuation",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard"
+    ],
+    "tag": "continuation"
+  },
+  "existence-uniqueness/lipschitz-with-a-corner": {
+    "exerciseRevision": 1,
+    "label": "uniqueness",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "uniqueness"
+  },
+  "exp-log/log-magnitude": {
+    "defaultScope": [
+      "mixed",
+      "hard"
+    ],
+    "exerciseRevision": 1,
+    "label": "logarithmic identities",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard"
+    ],
+    "tag": "logarithmic-identities"
+  },
+  "fourier-orthogonality/constrained-approximation": {
+    "exerciseRevision": 1,
+    "label": "orthogonal projection",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/olympiad"
+    ],
+    "tag": "orthogonal-projection"
+  },
+  "fourier-orthogonality/half-period-ramp": {
+    "exerciseRevision": 1,
+    "label": "Fourier coefficients",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/hard",
+      "series/olympiad"
+    ],
+    "tag": "fourier-series"
+  },
+  "fourier-transforms/compact-cosine-window-resonances": {
+    "exerciseRevision": 2026111802,
+    "label": "Fourier transforms",
+    "lessonRevision": 2026111802,
+    "scopes": [
+      "mixed/olympiad"
+    ],
+    "tag": "fourier-transform"
+  },
+  "ftc/crossing-endpoints": {
+    "exerciseRevision": 1,
+    "label": "the Leibniz rule",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "leibniz-rule"
+  },
+  "functions/composition-domain": {
+    "defaultScope": [
+      "mixed",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "domain restrictions",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/easy"
+    ],
+    "tag": "domain-restrictions"
+  },
+  "generating/factorial-growth-two-encodings": {
+    "exerciseRevision": 1,
+    "label": "generating functions",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/hard"
+    ],
+    "tag": "generating-functions"
+  },
+  "generating/weighted-pair-extraction": {
+    "exerciseRevision": 1,
+    "label": "generating functions",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/olympiad"
+    ],
+    "tag": "generating-functions"
+  },
+  "growth/basic-positive-negative-tails": {
+    "exerciseRevision": 1,
+    "label": "limit laws",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/easy"
+    ],
+    "tag": "limit-laws"
+  },
+  "growth/nested-log-and-sign": {
+    "defaultScope": [
+      "limits",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "growth comparison",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/medium"
+    ],
+    "tag": "growth-comparison"
+  },
+  "higher-derivatives/operator-versus-derivative": {
+    "exerciseRevision": 1,
+    "label": "higher derivatives",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/medium",
+      "differentiation/olympiad"
+    ],
+    "tag": "higher-derivatives"
+  },
+  "higher-derivatives/vanishing-polynomial-factor": {
+    "exerciseRevision": 1,
+    "label": "the Leibniz rule",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/hard"
+    ],
+    "tag": "leibniz-rule"
+  },
+  "implicit-logarithmic/implicit-log-domain": {
+    "defaultScope": [
+      "differentiation",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "implicit differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/medium"
+    ],
+    "tag": "implicit-differentiation"
+  },
+  "implicit-logarithmic/positive-base-power": {
+    "defaultScope": [
+      "differentiation",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "logarithmic differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/medium"
+    ],
+    "tag": "logarithmic-differentiation"
+  },
+  "improper/double-pole-no-rescue": {
+    "exerciseRevision": 1,
+    "label": "Cauchy principal values",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/olympiad"
+    ],
+    "tag": "cauchy-principal-value"
+  },
+  "improper/logarithmic-endpoint": {
+    "defaultScope": [
+      "integration",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "integration by parts",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "integration-by-parts"
+  },
+  "inequalities/fixed-sum-product": {
+    "exerciseRevision": 1,
+    "label": "arithmetic geometric mean",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/olympiad"
+    ],
+    "tag": "arithmetic-geometric-mean"
+  },
+  "integral-applications/root-line-area-and-shells": {
+    "exerciseRevision": 1,
+    "label": "cylindrical shells",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "cylindrical-shells"
+  },
+  "integral-applications/shifted-axis-frustum": {
+    "exerciseRevision": 1,
+    "label": "surface area",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "surface-area"
+  },
+  "interpolation-constructions/squared-denominator-data": {
+    "exerciseRevision": 1,
+    "label": "polynomial interpolation",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/olympiad",
+      "mixed/olympiad"
+    ],
+    "tag": "polynomial-interpolation"
+  },
+  "interpolation-constructions/two-value-slope-pairs": {
+    "exerciseRevision": 1,
+    "label": "Hermite interpolation",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/olympiad",
+      "mixed/olympiad"
+    ],
+    "tag": "hermite-interpolation"
+  },
+  "inverse-parametric/logarithmic-inverse": {
+    "defaultScope": [
+      "differentiation",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "inverse function differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/medium"
+    ],
+    "tag": "inverse-function-differentiation"
+  },
+  "inverse-parametric/parametric-exceptions": {
+    "exerciseRevision": 1,
+    "label": "parametric differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/hard"
+    ],
+    "tag": "parametric-differentiation"
+  },
+  "level-sets/direction-and-path-speed": {
+    "exerciseRevision": 1,
+    "label": "directional derivatives",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "directional-derivatives"
+  },
+  "level-sets/parabolic-level-reading": {
+    "exerciseRevision": 1,
+    "label": "level sets",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/easy"
+    ],
+    "tag": "level-sets"
+  },
+  "lhopital/product-to-quotient": {
+    "exerciseRevision": 1,
+    "label": "L’Hôpital’s rule",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/medium"
+    ],
+    "tag": "lhopital"
+  },
+  "limit-foundations/conjugate-limit": {
+    "exerciseRevision": 2,
+    "label": "rationalization",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/easy"
+    ],
+    "tag": "rationalization"
+  },
+  "linear-algebra/quadratic-unit-circle": {
+    "exerciseRevision": 1,
+    "label": "quadratic forms",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/olympiad"
+    ],
+    "tag": "quadratic-forms"
+  },
+  "linear-ode/linear-gaussian-factor": {
+    "defaultScope": [
+      "ode",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "integrating factor",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "integrating-factor"
+  },
+  "multi-chain/accelerating-curve": {
+    "defaultScope": [
+      "multivariable",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "chain rule",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "chain-rule"
+  },
+  "multi-chain/two-input-mixed": {
+    "exerciseRevision": 1,
+    "label": "chain rule",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "chain-rule"
+  },
+  "multi-constraints/rotated-quadratic-sphere": {
+    "exerciseRevision": 1,
+    "label": "the Rayleigh quotient",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/medium",
+      "multivariable/olympiad"
+    ],
+    "tag": "rayleigh-quotient"
+  },
+  "multi-constraints/unbounded-constraint-attainment": {
+    "exerciseRevision": 1,
+    "label": "Lagrange multipliers",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/olympiad",
+      "multivariable/hard"
+    ],
+    "tag": "lagrange-multipliers"
+  },
+  "multi-critical/degenerate-fourth-order": {
+    "exerciseRevision": 1,
+    "label": "hessian inertia",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "hessian-inertia"
+  },
+  "multi-critical/ellipse-boundary-comparison": {
+    "exerciseRevision": 1,
+    "label": "Lagrange multipliers",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "lagrange-multipliers"
+  },
+  "multi-critical/singular-constraint": {
+    "exerciseRevision": 1,
+    "label": "constrained optimization",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard",
+      "multivariable/olympiad"
+    ],
+    "tag": "constrained-optimization"
+  },
+  "multi-limits/continuous-not-linear": {
+    "exerciseRevision": 1,
+    "label": "differentiability",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "differentiability"
+  },
+  "multi-limits/domain-cusp-limit": {
+    "exerciseRevision": 1,
+    "label": "squeeze theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/olympiad",
+      "multivariable/hard"
+    ],
+    "tag": "squeeze-theorem"
+  },
+  "multi-local/path-and-unit-direction": {
+    "exerciseRevision": 1,
+    "label": "directional derivatives",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/easy"
+    ],
+    "tag": "directional-derivatives"
+  },
+  "multi-moments/gaussian-parameter-threshold": {
+    "exerciseRevision": 1,
+    "label": "Gaussian integrals",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard",
+      "multivariable/olympiad"
+    ],
+    "tag": "gaussian-integrals"
+  },
+  "multi-moments/tetrahedron-slack-moment": {
+    "exerciseRevision": 1,
+    "label": "iterated beta integral",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/medium",
+      "multivariable/olympiad"
+    ],
+    "tag": "iterated-beta-integral"
+  },
+  "multiple-integrals/parabolic-lens": {
+    "exerciseRevision": 1,
+    "label": "double integral order swap",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/medium"
+    ],
+    "tag": "double-integral-order-swap"
+  },
+  "multiple-integrals/positive-unbounded-product": {
+    "exerciseRevision": 1,
+    "label": "Tonelli’s theorem",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/hard",
+      "multivariable/olympiad"
+    ],
+    "tag": "tonelli"
+  },
+  "multiple-integrals/rectangle-integral-and-average": {
+    "exerciseRevision": 1,
+    "label": "average value",
+    "lessonRevision": 2,
+    "scopes": [
+      "multivariable/easy"
+    ],
+    "tag": "average-value"
+  },
+  "nonuniform/rational-layer-mass": {
+    "exerciseRevision": 20261118,
+    "label": "boundary asymptotics",
+    "lessonRevision": 20261118,
+    "scopes": [
+      "limits/hard",
+      "limits/olympiad"
+    ],
+    "tag": "boundary-asymptotics"
+  },
+  "ode-energy/damped-energy-bound": {
+    "exerciseRevision": 1,
+    "label": "energy method",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard",
+      "ode/medium"
+    ],
+    "tag": "energy-method"
+  },
+  "ode-energy/pendulum-quarter-time": {
+    "exerciseRevision": 1,
+    "label": "energy first integral",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/hard",
+      "ode/olympiad"
+    ],
+    "tag": "energy-first-integral"
+  },
+  "ode-exact-bernoulli/exact-circle-graph-endpoint": {
+    "exerciseRevision": 1,
+    "label": "exact equations",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/easy",
+      "ode/hard"
+    ],
+    "tag": "exact-equations"
+  },
+  "ode-exact-bernoulli/reciprocal-global-minimum": {
+    "exerciseRevision": 1,
+    "label": "Bernoulli equations",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "ode/medium"
+    ],
+    "tag": "bernoulli-equation"
+  },
+  "ode-frobenius/ordinary-data-recurrence": {
+    "defaultScope": [
+      "ode",
+      "hard"
+    ],
+    "exerciseRevision": 1,
+    "label": "power series",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard"
+    ],
+    "tag": "power-series"
+  },
+  "ode-frobenius/resonance-obstruction": {
+    "exerciseRevision": 1,
+    "label": "the Frobenius method",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard",
+      "ode/olympiad"
+    ],
+    "tag": "frobenius-method"
+  },
+  "ode-laplace/repeated-transform-pole": {
+    "exerciseRevision": 1,
+    "label": "the Laplace transform",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "laplace-transform"
+  },
+  "ode-laplace/unshifted-ramp-input": {
+    "exerciseRevision": 1,
+    "label": "the Laplace transform",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "ode/hard",
+      "ode/medium"
+    ],
+    "tag": "laplace-transform"
+  },
+  "ode-meaning/approach-equilibrium": {
+    "defaultScope": [
+      "ode",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "phase line",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/easy"
+    ],
+    "tag": "phase-line"
+  },
+  "ode-nonlinear/oscillatory-particular-global-branch": {
+    "exerciseRevision": 1,
+    "label": "Riccati equations",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard",
+      "ode/olympiad"
+    ],
+    "tag": "riccati"
+  },
+  "ode-nonlinear/rational-growth-first-hit": {
+    "exerciseRevision": 1,
+    "label": "separation of variables",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/easy",
+      "ode/medium"
+    ],
+    "tag": "separation-of-variables"
+  },
+  "ode-reduction/known-mode-zero": {
+    "exerciseRevision": 1,
+    "label": "reduction of order",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "ode/hard"
+    ],
+    "tag": "reduction-of-order"
+  },
+  "ode-reduction/negative-euler-interval": {
+    "exerciseRevision": 1,
+    "label": "Euler equations",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "ode/medium"
+    ],
+    "tag": "log-time-substitution"
+  },
+  "ode-systems/rotation-without-attraction": {
+    "exerciseRevision": 1,
+    "label": "phase plane",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/easy",
+      "ode/hard"
+    ],
+    "tag": "phase-plane"
+  },
+  "ode-systems/zero-eigenvalue-defect": {
+    "exerciseRevision": 1,
+    "label": "stability analysis",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard"
+    ],
+    "tag": "stability-analysis"
+  },
+  "ode-variation/hyperbolic-response": {
+    "exerciseRevision": 1,
+    "label": "variation of parameters",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium",
+      "ode/olympiad"
+    ],
+    "tag": "variation-of-parameters"
+  },
+  "ode-variation/quadrature-response": {
+    "exerciseRevision": 1,
+    "label": "variation of parameters",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard",
+      "ode/olympiad"
+    ],
+    "tag": "variation-of-parameters"
+  },
+  "one-sided-limits/match-three-data": {
+    "exerciseRevision": 1,
+    "label": "one sided analysis",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/easy"
+    ],
+    "tag": "one-sided-analysis"
+  },
+  "one-sided-limits/restricting-a-jump": {
+    "exerciseRevision": 1,
+    "label": "one sided analysis",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/easy",
+      "mixed/easy"
+    ],
+    "tag": "one-sided-analysis"
+  },
+  "parameter-integrals/both-moving-endpoints": {
+    "exerciseRevision": 1,
+    "label": "the Leibniz rule",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "leibniz-rule"
+  },
+  "parameter-integrals/damped-sine-remainder-ode": {
+    "exerciseRevision": 1,
+    "label": "parameter differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "integration/olympiad"
+    ],
+    "tag": "parameter-differentiation"
+  },
+  "parameter-integrals/exponential-tail-derivative": {
+    "exerciseRevision": 1,
+    "label": "parameter differentiation",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/hard"
+    ],
+    "tag": "parameter-differentiation"
+  },
+  "partial-sums/alternating-geometric-tail": {
+    "exerciseRevision": 1,
+    "label": "geometric series",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/medium"
+    ],
+    "tag": "geometric-series"
+  },
+  "partial-sums/harmonic-blocks": {
+    "exerciseRevision": 1,
+    "label": "block summation",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/easy"
+    ],
+    "tag": "block-summation"
+  },
+  "parts/twice-trigonometric": {
+    "exerciseRevision": 1,
+    "label": "integration by parts",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "integration-by-parts"
+  },
+  "power-series/weighted-geometric-center": {
+    "exerciseRevision": 1,
+    "label": "power series",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/medium"
+    ],
+    "tag": "power-series"
+  },
+  "products/normalized-positive-product": {
+    "exerciseRevision": 1,
+    "label": "infinite products",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/olympiad"
+    ],
+    "tag": "infinite-products"
+  },
+  "products/ordered-exponential-factors": {
+    "exerciseRevision": 1,
+    "label": "infinite products",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/hard"
+    ],
+    "tag": "infinite-products"
+  },
+  "rational-trig/divide-before-decomposing": {
+    "exerciseRevision": 1,
+    "label": "polynomial division",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium"
+    ],
+    "tag": "polynomial-division"
+  },
+  "rational-trig/tangent-root-transfer": {
+    "exerciseRevision": 1,
+    "label": "trigonometric substitution",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/easy"
+    ],
+    "tag": "trigonometric-substitution"
+  },
+  "rearrangements/greedy-target-one": {
+    "exerciseRevision": 1,
+    "label": "rearrangement",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/hard"
+    ],
+    "tag": "rearrangement"
+  },
+  "rearrangements/sparse-double-order": {
+    "exerciseRevision": 1,
+    "label": "summation order",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/hard"
+    ],
+    "tag": "summation-order"
+  },
+  "recurrences/equilibrium-or-escape": {
+    "exerciseRevision": 1,
+    "label": "recurrence relations",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/hard"
+    ],
+    "tag": "recurrence-relations"
+  },
+  "recurrences/period-two-transfer": {
+    "defaultScope": [
+      "limits",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "subsequence comparison",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/medium"
+    ],
+    "tag": "subsequence-comparison"
+  },
+  "second-order-ode/off-frequency-response": {
+    "defaultScope": [
+      "ode",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "undetermined coefficients",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "undetermined-coefficients"
+  },
+  "second-order-ode/repeated-homogeneous-mode": {
+    "defaultScope": [
+      "ode",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "characteristic equation",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/medium"
+    ],
+    "tag": "characteristic-equation"
+  },
+  "separable-ode/negative-reciprocal-branch": {
+    "exerciseRevision": 1,
+    "label": "separation of variables",
+    "lessonRevision": 1,
+    "scopes": [
+      "ode/hard"
+    ],
+    "tag": "separation-of-variables"
+  },
+  "series-benchmarks/rational-term-comparisons": {
+    "exerciseRevision": 1,
+    "label": "the comparison test",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/easy",
+      "series/medium"
+    ],
+    "tag": "direct-comparison"
+  },
+  "series-benchmarks/shifted-power-threshold": {
+    "exerciseRevision": 1,
+    "label": "p-series classification",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/easy"
+    ],
+    "tag": "p-series-classification"
+  },
+  "series-errors/factorial-geometric-tail": {
+    "exerciseRevision": 1,
+    "label": "direct comparison",
+    "lessonRevision": 1,
+    "scopes": [
+      "series/hard"
+    ],
+    "tag": "direct-comparison"
+  },
+  "slope-fields/choose-the-compatible-field": {
+    "exerciseRevision": 1,
+    "label": "slope fields",
+    "lessonRevision": 2,
+    "scopes": [
+      "mixed/easy",
+      "ode/easy"
+    ],
+    "tag": "slope-fields"
+  },
+  "slope-fields/horizontal-at-one-time": {
+    "exerciseRevision": 1,
+    "label": "slope fields",
+    "lessonRevision": 2,
+    "scopes": [
+      "ode/easy"
+    ],
+    "tag": "slope-fields"
+  },
+  "spectral/zero-slope-spectrum": {
+    "exerciseRevision": 20261118,
+    "label": "boundary value problems",
+    "lessonRevision": 2026111802,
+    "scopes": [
+      "mixed/olympiad",
+      "ode/olympiad"
+    ],
+    "tag": "boundary-value-problems"
+  },
+  "standard-limits/half-angle-transfer": {
+    "defaultScope": [
+      "limits",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "trigonometric limits",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/easy"
+    ],
+    "tag": "trigonometric-limits"
+  },
+  "stolz-cesaro/decaying-recurrence": {
+    "exerciseRevision": 1,
+    "label": "asymptotic recurrences",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/hard",
+      "limits/olympiad"
+    ],
+    "tag": "asymptotic-recurrences"
+  },
+  "stolz-cesaro/weighted-oscillation": {
+    "exerciseRevision": 1,
+    "label": "the Stolz–Cesàro theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "limits/hard"
+    ],
+    "tag": "stolz-cesaro"
+  },
+  "strategy-choice/exact-integral-record": {
+    "exerciseRevision": 1,
+    "label": "polynomial division",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/medium",
+      "mixed/medium"
+    ],
+    "tag": "polynomial-division"
+  },
+  "strategy-choice/series-defined-area": {
+    "exerciseRevision": 1,
+    "label": "geometric series",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "mixed/medium",
+      "series/medium"
+    ],
+    "tag": "geometric-series"
+  },
+  "strategy-object/pulse-record": {
+    "exerciseRevision": 1,
+    "label": "geometric series",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/easy",
+      "mixed/medium",
+      "series/easy"
+    ],
+    "tag": "geometric-series"
+  },
+  "strategy-object/tank-record": {
+    "exerciseRevision": 1,
+    "label": "the fundamental theorem of calculus",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/easy",
+      "mixed/easy",
+      "mixed/medium"
+    ],
+    "tag": "ftc"
+  },
+  "substitution/cubic-orientation": {
+    "defaultScope": [
+      "integration",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "substitution",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/easy"
+    ],
+    "tag": "substitution"
+  },
+  "summation-parts/quarter-turn-log-weight": {
+    "exerciseRevision": 1,
+    "label": "Abel summation",
+    "lessonRevision": 2,
+    "scopes": [
+      "series/hard"
+    ],
+    "tag": "abel-summation"
+  },
+  "symmetry/centered-first-moment": {
+    "exerciseRevision": 1,
+    "label": "symmetry",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/medium"
+    ],
+    "tag": "symmetry"
+  },
+  "symmetry/reciprocal-without-weight": {
+    "exerciseRevision": 1,
+    "label": "symmetry",
+    "lessonRevision": 1,
+    "scopes": [
+      "integration/hard",
+      "integration/olympiad"
+    ],
+    "tag": "symmetry"
+  },
+  "taylor-remainders/exact-geometric-remainder": {
+    "exerciseRevision": 1,
+    "label": "geometric series",
+    "lessonRevision": 2,
+    "scopes": [
+      "differentiation/hard"
+    ],
+    "tag": "geometric-series"
+  },
+  "taylor-remainders/oscillating-inner-cancellation": {
+    "exerciseRevision": 1,
+    "label": "Taylor expansion",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/hard"
+    ],
+    "tag": "taylor-expansion"
+  },
+  "taylor-remainders/shifted-sine": {
+    "defaultScope": [
+      "limits",
+      "medium"
+    ],
+    "exerciseRevision": 1,
+    "label": "Taylor expansion",
+    "lessonRevision": 2,
+    "scopes": [
+      "limits/medium"
+    ],
+    "tag": "taylor-expansion"
+  },
+  "trig/trig-sign-interval": {
+    "defaultScope": [
+      "differentiation",
+      "easy"
+    ],
+    "exerciseRevision": 1,
+    "label": "trigonometric identities",
+    "lessonRevision": 1,
+    "scopes": [
+      "differentiation/easy"
+    ],
+    "tag": "trigonometric-identities"
+  },
+  "variational/prescribed-area-energy": {
+    "exerciseRevision": 20261118,
+    "label": "variational calibration",
+    "lessonRevision": 20261118,
+    "scopes": [
+      "mixed/olympiad",
+      "multivariable/olympiad"
+    ],
+    "tag": "variational-calibration"
+  },
+  "vector-calculus/ellipse-around-hole": {
+    "exerciseRevision": 1,
+    "label": "winding number",
+    "lessonRevision": 1,
+    "scopes": [
+      "mixed/hard",
+      "multivariable/hard"
+    ],
+    "tag": "winding-number"
+  },
+  "vector-calculus/mass-versus-work": {
+    "exerciseRevision": 1,
+    "label": "work integrals",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard"
+    ],
+    "tag": "work-integrals"
+  },
+  "vector-surfaces/close-paraboloid-with-sides": {
+    "exerciseRevision": 1,
+    "label": "divergence theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard",
+      "multivariable/medium"
+    ],
+    "tag": "divergence-theorem"
+  },
+  "vector-surfaces/replace-curl-surface": {
+    "exerciseRevision": 1,
+    "label": "Stokes’ theorem",
+    "lessonRevision": 1,
+    "scopes": [
+      "multivariable/hard",
+      "multivariable/olympiad"
+    ],
+    "tag": "stokes-theorem"
+  }
+}

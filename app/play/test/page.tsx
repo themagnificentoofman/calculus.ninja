@@ -1,42 +1,53 @@
 'use client';
+import {practiceSignInReturn,readStudyPractice} from '@/lib/study/practice-link.mjs';
+import { FreeResponseRound } from '@/components/FreeResponseRound';
+import {RoundQuestionConfig,type QuestionMix} from '@/components/RoundQuestionConfig';
+import { ProblemStatement } from '@/components/ProblemStatement';
 
 import {useReplayCapture,ReplayCaptureStatus,observeReplay,useRoundUrl,capturedView} from '@/components/ReplayCapture';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { motion, AnimatePresence } from 'motion/react';
 import { ProblemReference } from '@/components/ProblemReference';
 import { MathDisplay } from '@/components/MathDisplay';
+import { ContentAttribution } from '@/components/ContentAttribution';
 import { SolutionSteps } from '@/components/SolutionSteps';
 import { ArrowRight, CheckCircle2, XCircle, RefreshCw, Home, Play, Calculator, Info } from 'lucide-react';
-import { selectQuestions } from '@/lib/questions';
+import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundStart';
+import {CancelledRound} from '@/components/CancelledRound';
+import {auth} from '@/firebase';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
 
-interface Question {
-  problemId?: string;
-  problemRevision?: number;
-  latexProblem: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string | string[];
-  topic: string;
-  difficulty: string;
-}
+type Question = import('@/lib/game-progress').GameQuestion;
 
 export default function TestMode() {
+  const {user}=useAuth();
+  const [study,setStudy] = useState<ReturnType<typeof readStudyPractice> | undefined>(undefined);
+  useEffect(() => { setStudy(readStudyPractice(window.location.search)); }, []);
+  if(study===null&&typeof window!=='undefined'&&['format','technique'].some(k=>new URLSearchParams(window.location.search).has(k)))return <main className="mx-auto max-w-3xl p-8"><h1 className="mb-4 text-2xl font-bold">Practice link unavailable</h1><p className="text-zinc-300">This link does not match a current Study drill.</p><a href="/study" className="mt-5 inline-block rounded py-3 text-emerald-300 underline">Return to the Study Guide</a></main>;
+  return <>
+    {study&&<nav aria-label="Return to Study Guide" className="mx-auto max-w-4xl px-4 pt-4"><a href={study.returnHref}
+      className="inline-block rounded py-2 text-sm text-emerald-300 underline focus-visible:outline-2">Return to lesson section</a></nav>}
+    {study===undefined ? <p role="status" className="p-8 text-center text-zinc-400">Loading practice…</p>
+      : <TestPractice key={user?.uid??'signed-out'} study={study}/>}
+  </>;
+}
+
+function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
   const { user, loading: authLoading } = useAuth();
-  const [category, setCategory] = useState('all');
-  const [difficulty, setDifficulty] = useState('medium');
-  const [count, setCount] = useState(5);
+  const [category, setCategory] = useState(study?.category ?? 'all');
+  const drill=study&&'drill' in study?study.drill:null;
+  const [questionMix,setQuestionMix]=useState<QuestionMix>({multipleChoice:drill?.format==='free-response'?0:study?1:5,freeResponse:drill?.format==='free-response'?1:0,order:'mcq-first'});
+  const [difficulty, setDifficulty] = useState(study?.difficulty ?? 'medium');
+  const count=questionMix.multipleChoice+questionMix.freeResponse;
   
   const [gameId, setGameId] = useState<string | null>(null);
   const [roundGame,setRoundGame]=useState<import('@/lib/game-progress').GameSession|null>(null);
   const busy = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -67,28 +78,28 @@ export default function TestMode() {
     }
   }, [profile?.color]);
 
-  const startGame = async () => {
-    if (!user || busy.current) return;
-    setGenerationError(''); setSaveError('');
-    setLoading(true);
-    try {
-      const generatedQuestions = await selectQuestions(category, difficulty, count, 'test');
-      if (generatedQuestions) {
-        const id = await gameProgress.createGame(user.uid, 'test', generatedQuestions, { category, difficulty });
-        setGameId(id);
-        const round=await gameProgress.getGame(id);setRoundGame(round);setQuestions(round.questions || []);
-        setCurrentIndex(0);
-        setScore(0);
-        setFinished(false);
-        setSelectedOption(null);
-        setShowExplanation(false);
-
-      }
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Could not select problems. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  async function loadRound(id:string){
+    if(!user)return false;const uid=user.uid;
+    const round=await gameProgress.getGame(id);
+    if(round.mode!=='test'||!['active','finished','cancelled'].includes(round.status))throw Error('This round is unavailable in Test practice.');
+    const saved=await capturedView(uid,id);
+    if(auth.currentUser?.uid!==uid)return false;
+    const answers=round.answers?.[uid]||{},next=Object.keys(answers).length;
+    const index=saved?.index!==null&&saved?.index!==undefined?Math.min(saved.index,next):Math.max(0,next-1);
+    setGameId(id);setRoundGame(round);setQuestions(round.questions||[]);
+    if(round.questionMix)setQuestionMix(round.questionMix);
+    setCategory(round.category||'all');setDifficulty(round.difficulty||'medium');setScore(round.scores[uid]||0);
+    setCurrentIndex(Math.min(index,(round.questions?.length||1)-1));setShowExplanation(index<next);
+    setSelectedOption(index<next?answers[String(index)]?.selectedOption??null:saved?.selectedOption??null);
+    setFinished(round.status==='finished'&&saved?.finished===true);setGenerationError('');setSaveError('');return true;
+  }
+  const roundStart=usePendingRoundStart(user?.uid,'test',loadRound,roundGame&&(questions.length||roundGame.status==='cancelled')?gameId:null);
+  const changeSettings=()=>{setGameId(null);setRoundGame(null);setQuestions([]);setFinished(false);};
+  const loading=roundStart.loading;
+  const startGame=()=>{
+    if(!user||busy.current||count<1||count>20)return;
+    setGenerationError('');setSaveError('');
+    return roundStart.start({mode:'test',category,difficulty,count,questionMix,...(drill?{tag:drill.tag as string}:{})});
   };
 
   const handleOptionSelect = (index: number) => {
@@ -123,7 +134,7 @@ export default function TestMode() {
     } else { playSound('end'); setFinished(true); }
   };
 
-  useRoundUrl(user?.uid,gameId,id=>{void gameProgress.getGame(id).then(async g=>{if(g.mode!=='test')throw Error('This round belongs to another mode.');setGameId(id);setRoundGame(g);setQuestions(g.questions||[]);setScore(g.scores[user!.uid]||0);const answers=g.answers?.[user!.uid]||{},next=Object.keys(answers).length;const saved=await capturedView(user!.uid,id);const index=saved?.index!==null&&saved?.index!==undefined?Math.min(saved.index,next):Math.max(0,next-1);setCurrentIndex(Math.min(index,(g.questions?.length||1)-1));const feedback=index<next;setShowExplanation(feedback);setSelectedOption(feedback?answers[String(index)]?.selectedOption??null:saved?.selectedOption??null);setFinished(g.status==='finished'&&saved?.finished===true);}).catch(e=>setGenerationError(e.message));});
+  useRoundUrl(user?.uid,gameId,id=>{void loadRound(id).catch(()=>setGenerationError('Your round could not be loaded. Please refresh and try again.'));});
   const captureStatus=useReplayCapture(user?.uid,gameId,roundGame?.replayVersion,{index:!loading&&!finished&&questions.length?currentIndex:null,selectedOption,feedbackIndex:!finished&&showExplanation?currentIndex:null,serverEventId:roundGame?.answers?.[user?.uid||'']?.[currentIndex]?.serverEventId,finished,settled:!saving});
 
   if (authLoading) return <main className="p-8 text-center text-zinc-400" role="status">Loading your account…</main>;
@@ -131,7 +142,8 @@ export default function TestMode() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-zinc-400">Please sign in to play.</p>
+        <a className="inline-block rounded-xl border border-zinc-700 px-4 py-3 text-emerald-300 underline"
+          href={'/auth?next=' + encodeURIComponent(practiceSignInReturn(window.location.search))}>Sign in to play</a>
       </div>
     );
   }
@@ -145,28 +157,32 @@ export default function TestMode() {
     );
   }
 
+  if(roundGame?.status==='cancelled')return <CancelledRound onSettings={changeSettings} error={roundStart.error}/>;
+
   if (finished) {
+    const summary=roundGame?.freeResponseSummary;
+    const mcAnswers=Object.values(roundGame?.answers?.[user.uid]||{}).filter(a=>a.responseFormat!=='free-response');
+    const mcTotal=questions.filter(q=>q.responseFormat!=='free-response').length;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+        <div
           className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-3xl max-w-md w-full text-center"
         >
           <Calculator className="w-20 h-20 text-blue-500 mx-auto mb-6" />
           <h2 className="text-3xl font-bold mb-2">Test Complete!</h2>
-          <p className="text-zinc-400 mb-8">You scored <span className="font-bold font-mono text-xl" style={{ color: playerColor }}>{score}</span> out of {questions.length}</p>
+          {['free-response','mixed'].includes(roundGame?.responseFormat||'')?<div className="mb-8 text-zinc-300"><>{mcTotal>0&&<p className="mb-4">Multiple choice: {mcAnswers.filter(a=>a.correct).length} correct out of {mcTotal}.</p>}<p className="font-medium text-white">Free response</p></><p className="mb-4">{summary?.graded?`${summary.correct} correct out of ${summary.graded} graded answers (${Math.round(100*summary.correct/summary.graded)}%).`:'No graded answers in this round.'}</p>{summary&&<dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-zinc-400">Finalized</dt><dd>{summary.finalized} / {summary.total}</dd></div><div><dt className="text-zinc-400">Ungraded submissions</dt><dd>{summary.ungradedSubmissions}</dd></div><div><dt className="text-zinc-400">Skipped</dt><dd>{summary.skipped}</dd></div><div><dt className="text-zinc-400">Revealed</dt><dd>{summary.revealed}</dd></div></dl>}<p className="mt-4 text-xs text-zinc-400">Skipped, revealed and ungraded submissions do not count as incorrect. Free-response results are separate from multiple-choice accuracy and competitive ratings.</p></div>:<p className="text-zinc-400 mb-8">You scored <span className="font-bold font-mono text-xl" style={{ color: playerColor }}>{score}</span> out of {questions.length}</p>}
           
-          <ReplayCaptureStatus status={captureStatus} /><GameResultStatus gameId={gameId} />
+          <ReplayCaptureStatus status={captureStatus} /><GameResultStatus gameId={gameId} /><GameSaveError error={generationError||roundStart.error} /><PendingRoundStart state={roundStart}/>
           <div className="flex flex-col gap-4">
             <button 
               onClick={startGame}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-colors"
+              disabled={!!roundStart.pending||roundStart.loading}
+              className="disabled:opacity-40 disabled:cursor-not-allowed w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-colors"
             >
               Play Again
             </button>
             <button 
-              onClick={() => { setGameId(null);setRoundGame(null);setQuestions([]); setFinished(false); }}
+              onClick={changeSettings}
               className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-bold transition-colors"
             >
               Change Settings
@@ -175,31 +191,29 @@ export default function TestMode() {
               Back to Dashboard
             </a>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
   if (questions.length > 0) {
     const q = questions[currentIndex];
+    if(q.responseFormat==='free-response')return <FreeResponseRound key={`${gameId}:${currentIndex}`} game={roundGame!} id={gameId!} uid={user.uid} index={currentIndex} onResult={(g,finalized)=>{setRoundGame(g);if(g.questionMix)setQuestionMix(g.questionMix);setCategory(g.category||'all');setDifficulty(g.difficulty||'medium');setQuestions(g.questions||[]);setScore(g.scores[user.uid]||0);setShowExplanation(finalized);}} onNext={()=>{if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});setCurrentIndex(currentIndex+1);setSelectedOption(null);setShowExplanation(false);}} onFinish={()=>setFinished(true)}/>;
     const isCorrect = selectedOption === q.correctIndex;
 
     return (
       <div className="min-h-screen max-w-4xl mx-auto px-4 py-12 relative overflow-x-clip">
-        <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError} />
-        <AnimatePresence>
+        <ReplayCaptureStatus status={captureStatus} /><GameSaveError error={saveError||roundStart.error} />
+        
           {xpEarned !== null && (
-             <motion.div 
-               initial={{ opacity: 0, y: 20, scale: 0.8 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: -20 }}
+             <div
                className="pointer-events-none fixed top-24 right-10 md:right-20 bg-amber-500/20 border border-amber-500/50 text-amber-500 font-bold px-4 py-2 rounded-xl flex items-center gap-2 z-50 shadow-lg"
              >
                <span className="text-xl">+</span>
                <span className="text-2xl">{xpEarned} XP</span>
-             </motion.div>
+             </div>
           )}
-        </AnimatePresence>
+        
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-center mb-8">
           <a href="/" className="col-span-2 sm:col-span-1 text-zinc-400 hover:text-white flex items-center gap-2">
@@ -210,29 +224,22 @@ export default function TestMode() {
           </div>
           <div className="font-bold font-mono flex justify-end items-center gap-2 whitespace-nowrap" style={{ color: playerColor }}>
             Score: 
-            <motion.span
+            <span
               key={score}
-              initial={{ scale: 1.5, opacity: 0, y: -10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               className="inline-block"
             >
               {score}
-            </motion.span>
+            </span>
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div 
+        
+          <div 
             key={currentIndex}
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.3 }}
             className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 sm:p-8 mb-8"
           >
             <div className="text-xl sm:text-2xl mb-6 sm:mb-12 w-full overflow-x-auto py-4">
-              <MathDisplay math={q.latexProblem} block />
+              <ProblemStatement math={q.latexProblem} legacy={q.legacy} /><ContentAttribution credit={q.contentNotice} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -274,9 +281,7 @@ export default function TestMode() {
             </div>
 
             {!showExplanation && selectedOption !== null && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="mt-8 flex justify-center"
               >
                 <button
@@ -285,15 +290,13 @@ export default function TestMode() {
                 >
                   Confirm Answer <CheckCircle2 className="w-5 h-5" />
                 </button>
-              </motion.div>
+              </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        
 
         {showExplanation && (
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+          <div
             className={`p-4 sm:p-6 rounded-2xl border mb-8 ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -312,6 +315,7 @@ export default function TestMode() {
               <h4 className="text-zinc-300 font-medium mb-2">Explanation:</h4>
               <div className="text-zinc-400 leading-relaxed w-full flex flex-col gap-4">
                 <SolutionSteps steps={q.explanation} />
+                  <ContentAttribution credit={q.contentAttribution} />
               </div>
             </div>
 
@@ -324,7 +328,7 @@ export default function TestMode() {
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
     );
@@ -342,12 +346,15 @@ export default function TestMode() {
           <span>Test</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Test Setup</h1>
-        <p className="text-zinc-400 mt-4 text-lg">Configure your test session parameters.</p>
+        <p className="text-zinc-400 mt-4 text-lg">Choose your topics, difficulty, question mix and order.</p>
       </div>
       
-      {generationError && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError}</p>}
+      <PendingRoundStart state={roundStart}/>
+      {(generationError||roundStart.error) && <p role="alert" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{generationError||roundStart.error}</p>}
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-6 sm:p-10 space-y-8 backdrop-blur-sm shadow-xl">
         <div className="space-y-6">
+          {drill?<div className="space-y-3"><h2 className="text-xl font-semibold">Practice {drill.label}</h2><p className="text-zinc-300 capitalize">{category} · {difficulty} · {drill.format==='free-response'?'Free response':'Multiple choice'} · 1 question</p><p className="text-sm text-zinc-400">Your recent practice can affect which questions are available.</p>{study?.broaderHref&&<a href={study.broaderHref} className="inline-flex min-h-11 items-center rounded text-emerald-300 underline">Open broader practice setup</a>}</div>:<>
+          <RoundQuestionConfig value={questionMix} onChange={setQuestionMix}/>
           <div>
             <label className="flex items-center gap-2 text-sm font-bold text-zinc-300 mb-3 uppercase tracking-wider group relative w-fit">
               Category
@@ -362,7 +369,7 @@ export default function TestMode() {
                 onChange={e => setCategory(e.target.value)}
                 className="w-full appearance-none bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               >
-                <option value="all">All</option>
+                <option value="all">Mixed topics</option>
                 <option value="integration">Integration</option>
                 <option value="differentiation">Differentiation</option>
                 <option value="limits">Limits</option>
@@ -401,29 +408,7 @@ export default function TestMode() {
             </div>
           </div>
 
-          <div>
-            <label className="flex items-center gap-2 text-sm font-bold text-zinc-300 mb-3 uppercase tracking-wider group relative w-fit">
-              Number of Questions
-              <Info className="w-4 h-4 text-zinc-500 cursor-help" />
-              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-zinc-800 text-xs text-zinc-300 rounded shadow-xl z-10 border border-zinc-700 normal-case font-normal">
-                The total number of questions in the test.
-              </div>
-            </label>
-            <div className="flex items-center gap-4">
-              <input 
-                type="range" 
-                min="1" 
-                max="20" 
-                value={count} 
-                onChange={e => setCount(parseInt(e.target.value) || 5)}
-                className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <div className="w-16 h-12 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-center font-mono font-bold text-xl text-blue-400">
-                {count}
-              </div>
-            </div>
-          </div>
-
+          </>}
           <div>
             <label className="flex items-center gap-2 text-sm font-bold text-zinc-300 mb-3 uppercase tracking-wider group relative w-fit">
               Display Color
@@ -449,11 +434,12 @@ export default function TestMode() {
         <div className="pt-4 border-t border-zinc-800/50">
           <button 
             onClick={startGame}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 group"
+              disabled={!!roundStart.pending||roundStart.loading||count<1||count>20}
+            className="disabled:opacity-40 disabled:cursor-not-allowed w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-lg transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2 group"
           >
             <Play className="w-5 h-5 fill-current" /> 
             <span>Start Test</span>
-            <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all absolute right-6" />
+            <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </div>
