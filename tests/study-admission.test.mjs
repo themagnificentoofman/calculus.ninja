@@ -163,3 +163,20 @@ test('a Test practice presentation review only carries the exact Test page chang
   assert.throws(() => beforeTestPracticeReview(review, { ...newer, 'other.ts': hash('changed') }));
   assert.throws(() => beforeTestPracticeReview({ ...review, before: hash('other') }, newer));
 });
+
+test('a Study drill availability review covers only the reader and the recorded predecessor', async () => {
+  const { createHash } = await import('node:crypto');
+  const { canonical } = await import('../lib/bank/compact-codec.mjs');
+  const { beforeDrillAvailabilityReview } = await import('../scripts/milestone4/verify-study-admissions.mjs');
+  const hash = value => createHash('sha256').update(canonical(value)).digest('hex');
+  const reader = 'components/study/StudyLessonReader.tsx';
+  const previous = { [reader]: hash('previous reader'), 'other.ts': hash('other file') };
+  const current = { ...previous, [reader]: hash('current reader') };
+  const review = { version: 'study-drill-availability-review-1', before: previous[reader],
+    after: current[reader], predecessor: hash(previous), successor: hash(current) };
+  assert.deepEqual(beforeDrillAvailabilityReview(review, current), previous);
+  assert.throws(() => beforeDrillAvailabilityReview(review, { ...current, [reader]: previous[reader] }));
+  assert.throws(() => beforeDrillAvailabilityReview(review, { ...current, 'other.ts': hash('changed') }));
+  assert.throws(() => beforeDrillAvailabilityReview({ ...review, predecessor: hash('unrelated') }, current));
+  assert.throws(() => beforeDrillAvailabilityReview({ ...review, version: 'study-test-practice-review-1' }, current));
+});
