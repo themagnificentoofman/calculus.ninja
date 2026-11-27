@@ -20,6 +20,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { playSound } from '@/lib/sounds';
 import { hasRating } from '@/lib/progression';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { gameStandings, nextUnanswered, type GameSession, type MultipleChoiceSession, requireMultipleChoiceSession } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { Chat } from '@/components/Chat';
@@ -257,7 +258,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setShowExplanation(true);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 

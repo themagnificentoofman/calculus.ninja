@@ -6,13 +6,13 @@ import {loadHistoryPage,historyDate,type HistoryCursor,type HistoryFilters,type 
 import {apiRequest} from '@/lib/game-session';
 import {legacyMessage} from '@/lib/replay/contracts';
 import {recordedModeLabel, recordedStateLabel, recordedResultLabel, recordedTopicLabel, recordedDifficultyLabel} from '@/lib/replay/presentation';
-export function GameHistory(){const {user}=useAuth();return user?<HistoryBrowser uid={user.uid}/>:null;}
+export function GameHistory(){const {user}=useAuth();return user?<HistoryBrowser key={user.uid} uid={user.uid}/>:null;}
 export function HistoryBrowser({uid,load=loadHistoryPage}:{uid:string;load?:typeof loadHistoryPage}){
 const [filters,setFilters]=useState<HistoryFilters>({}),[pages,setPages]=useState<HistoryCursor[]>([{}]),[page,setPage]=useState(0),[rows,setRows]=useState<HistoryRow[]>([]),[next,setNext]=useState<HistoryCursor>({}),[more,setMore]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0),[statuses,setStatuses]=useState<Record<string,string>>({});
  const change=(patch:HistoryFilters)=>{setFilters(f=>({...f,...patch}));setPages([{}]);setPage(0);};
  useEffect(()=>{let active=true;if(!uid)return;setLoading(true);setError('');setStatuses({});
   if(filters.from&&filters.to&&filters.from>filters.to){setError('The end date must be on or after the start date.');setLoading(false);return;}
-  void load(db,uid,filters,pages[page]).then(async result=>{if(!active)return;setRows(result.rows);setNext(result.cursor);setMore(result.hasMore);setLoading(false);const ids=result.rows.filter(r=>[1,2].includes(r.replayVersion)).map(r=>r.id);if(ids.length){try{const response=await apiRequest('replay',{op:'statuses',roundIds:ids});if(active)setStatuses(response.statuses);}catch{if(active)setStatuses(Object.fromEntries(ids.map(id=>[id,'Status unavailable'])));}}}).catch(()=>{if(active){setError('History could not be loaded. Your stored rounds are unchanged.');setLoading(false);}});
+  void load(db,uid,filters,pages[page]).then(async result=>{if(!active)return;setRows(result.rows);setNext(result.cursor);setMore(result.hasMore);setLoading(false);const ids=result.rows.filter(r=>[1,2].includes(r.replayVersion)).map(r=>r.id);if(ids.length){try{const response=await apiRequest('replay',{op:'statuses',roundIds:ids},uid);if(active)setStatuses(response.statuses);}catch{if(active)setStatuses(Object.fromEntries(ids.map(id=>[id,'Status unavailable'])));}}}).catch(()=>{if(active){setError('History could not be loaded. Your stored rounds are unchanged.');setLoading(false);}});
   return()=>{active=false;};
  },[uid,filters,page,pages,retry]);
  const select=(label:string,key:keyof HistoryFilters,options:[string,string][])=> <label className="grid gap-1 text-xs text-zinc-400">{label}<select className="min-h-11 min-w-0 rounded-lg border border-zinc-700 bg-zinc-950 px-2 text-white" value={filters[key]||'all'} onChange={e=>change({[key]:e.target.value})}>{options.map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></label>;

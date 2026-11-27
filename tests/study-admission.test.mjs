@@ -147,3 +147,19 @@ test('all local runtime inputs to Study readers are presentation-bound or separa
  assert.deepEqual(uncovered,[]);
  assert.ok(inputs.has('content/study/reference-titles.json'));
 });
+
+test('a Test practice presentation review only carries the exact Test page change', async () => {
+  const { createHash } = await import('node:crypto');
+  const { canonical } = await import('../lib/bank/compact-codec.mjs');
+  const { beforeTestPracticeReview } = await import('../scripts/milestone4/verify-study-admissions.mjs');
+  const hash = value => createHash('sha256').update(canonical(value)).digest('hex');
+  const page = 'app/play/test/page.tsx';
+  const older = { [page]: hash('before'), 'other.ts': hash('same') };
+  const newer = { ...older, [page]: hash('after') };
+  const review = { version: 'study-test-practice-review-1', before: older[page],
+    after: newer[page], predecessor: hash(older), successor: hash(newer) };
+  assert.deepEqual(beforeTestPracticeReview(review, newer), older);
+  assert.throws(() => beforeTestPracticeReview(review, { ...newer, [page]: hash('stale') }));
+  assert.throws(() => beforeTestPracticeReview(review, { ...newer, 'other.ts': hash('changed') }));
+  assert.throws(() => beforeTestPracticeReview({ ...review, before: hash('other') }, newer));
+});

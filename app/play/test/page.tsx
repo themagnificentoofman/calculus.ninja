@@ -17,6 +17,7 @@ import {CancelledRound} from '@/components/CancelledRound';
 import {auth} from '@/firebase';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
 
@@ -122,7 +123,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setShowExplanation(true);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 

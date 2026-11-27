@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createApiRequest,ApiRequestError} from '../lib/api-request.mjs';
+import {createApiRequest,ApiRequestError,answerSubmissionError} from '../lib/api-request.mjs';
 const deferred=()=>{let resolve;return {promise:new Promise(r=>resolve=r),resolve};};
 const flush=()=>new Promise(r=>setImmediate(r));
 function setup({token=Promise.resolve('token'),fetch=async()=>Response.json({ok:true})}={}){
@@ -34,4 +34,12 @@ test('raw token/network/upstream diagnostics stay out of displayed API errors',a
  }
  const s=setup({fetch:async()=>Response.json({error:'Choose a supported question count.',code:'BAD_REQUEST'},{status:400})});
  await assert.rejects(s.request('rounds',{}),e=>e.message==='Choose a supported question count.'&&e.code==='BAD_REQUEST');
+});
+
+test('submission guidance keeps authored errors and stays uncertain after an unknown failure', () => {
+ const authored = new ApiRequestError('Your signed-in account changed. Refresh before continuing.', 401, 'SIGN_IN');
+ assert.equal(answerSubmissionError(authored), authored.message);
+ for (const failure of [new Error('internal diagnostic'), null]) {
+  assert.equal(answerSubmissionError(failure), 'Your answer submission could not be confirmed. Please retry.');
+ }
 });

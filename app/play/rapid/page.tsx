@@ -15,6 +15,7 @@ import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundS
 import {CancelledRound} from '@/components/CancelledRound';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { nextUnanswered } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { auth, db } from '@/firebase';
@@ -164,7 +165,7 @@ function RapidPractice() {
       setScore(result.game.scores[user.uid]); setSelectedOption(null);
       if (result.game.status === 'finished') { setFinished(true); finishedRef.current = true; }
       else setCurrentIndex(nextUnanswered(result.game, user.uid));
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 
