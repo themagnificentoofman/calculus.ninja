@@ -6,6 +6,7 @@ import {includesLegacyForMode} from './legacy-selection.mjs';
 import { competitiveRoomOptions, createServerGames, GameError, identifier } from './game-engine.ts';
 import { BankUnavailableError, type RecentProblems } from './bank-selection.ts';
 import type { RoundSnapshot, RoundSelectionDiagnostics as SelectionDiagnostics } from '../bank/contracts.ts';
+import { isQaProfile } from './qa-public-profile.ts';
 import { socialAction } from './social.ts';
 import { readBoundedJson, validateQuestionRequest, validQuestionResponse } from './questions-policy.mjs';
 import { StoreError, type Store, type Data } from './firestore-admin.ts';
@@ -28,6 +29,9 @@ export function createGameApi(deps: { store: Store; verify: (token: string) => P
     if (!bearer || bearer[1].length > 8192) return response({ error: 'Please sign in.' }, 401);
     let claims: Data;
     try { claims = await deps.verify(bearer[1]); identifier(claims.sub); } catch { return response({ error: 'Your sign-in has expired. Please sign in again.' }, 401); }
+    if (resource === 'profile' && isQaProfile({email: claims.email})) {
+      return response({error: 'This account cannot create a player profile.'}, 403);
+    }
     const uid = claims.sub;
     try {
       let body: Data;

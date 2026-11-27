@@ -57,6 +57,35 @@ export function beforeTestPracticeReview(review,sources){
 export function beforeDrillAvailabilityReview(review,sources){
  return beforeReviewedFile(review,sources,'components/study/StudyLessonReader.tsx','study-drill-availability-review-1','Study drill availability');
 }
+
+// The private admission registry pins this evidence object by content hash.
+export function beforeSecurityPresentation(review, sources, readEvidence){
+ const allowed=['package.json','package-lock.json','lib/server/round-creation-policy.json','lib/server/study-practice-activation.json'];
+ assert(review?.version==='study-security-presentation-1' && review.changes &&
+  Object.keys(review.changes).length===allowed.length && sha(canonical(sources))===review.successor,
+  'Unreviewed security presentation');
+ assert(typeof readEvidence==='function' && isHash(review.support?.selectorProof) && isHash(review.support?.readerMarkup),
+  'Missing security presentation evidence');
+ const drills=readEvidence(review.support.selectorProof),markup=readEvidence(review.support.readerMarkup);
+ assert(drills.reviewOnly===false && isHash(drills.db) && isHash(drills.policy) && Array.isArray(drills.scopes) &&
+  drills.scopes.length===review.support.checkedFormats && drills.scopes.length===2*review.support.servedScopes &&
+  markup.before?.lockSha256===review.changes['package-lock.json']?.before && markup.after?.lockSha256===sources['package-lock.json'],
+  'Security review uses different drill or package inputs');
+ for(const [kind,field] of [['lessons','lessonPages'],['paths','pathPages'],['tiers','tierPages']]){
+  const page=markup.pages?.[kind];
+  assert(page && page.total===review.support[field] && page.total===page.identical &&
+   page.total>0 && Array.isArray(page.changed) && page.changed.length===0,'Unreviewed reader markup');
+ }
+ const prior={...sources};
+ for (const path of allowed){
+  const change=review.changes[path];
+  assert(change && isHash(change.before) && change.before!==change.after && change.after===sources[path],
+   'Unbound security presentation source '+path);
+  prior[path]=change.before;
+ }
+ assert(sha(canonical(prior))===review.predecessor,'Security presentation predecessor differs');
+ return prior;
+}
 function studyDashboardPresentation(amendment, sources=studyPresentationSources()){
  assert(amendment?.version==='study-dashboard-presentation-1','Invalid dashboard presentation review');
  const scope=['components/study/StudyLibrary.tsx','components/study/StudyLessonReader.tsx','components/study/StudyMark.tsx','lib/study/marks.mjs'];
@@ -164,8 +193,14 @@ export async function verifyStudyAdmissions({catalog=defaultCatalog(),admissions
 export function studyEvidenceEnvironment(){
  const directory=process.env.CALCULUS_STUDY_EVIDENCE_DIR,inventory=process.env.CALCULUS_STUDY_BANK_INVENTORY;
  const scoped=registry.presentationHash!==currentStudyPresentationHash()&&Object.keys(registry.documents??{}).length>0;
+ let sources=studyPresentationSources();
+ if(scoped && registry.securityPresentationReview){
+  assert(directory && isHash(registry.securityPresentationReview),'Private security presentation evidence required');
+  const readEvidence=evidenceDirectory(directory);
+  sources=beforeSecurityPresentation(readEvidence(registry.securityPresentationReview),sources,readEvidence);
+ }
  const presentationHash=scoped ? studyDashboardPresentation(JSON.parse(readFileSync(
-  resolve(root,'docs/milestone4/study-dashboard-presentation-review.json'),'utf8'))) : undefined;
+  resolve(root,'docs/milestone4/study-dashboard-presentation-review.json'),'utf8')),sources) : undefined;
  return {...(presentationHash?{presentationHash}:{}),...(directory?{readEvidence:evidenceDirectory(directory)}:{}),...(inventory?{readInventory:studyInventoryFile(inventory)}:{})};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))console.log(JSON.stringify(await verifyStudyAdmissions({...studyEvidenceEnvironment(),requireComplete:process.argv.includes('--release')}),null,2));

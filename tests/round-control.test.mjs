@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import {authorizeRound, recoverRoundAuthorization} from '../lib/server/round-authorizations.mjs';
 import {readFileSync, readdirSync} from 'node:fs';
 import {sqliteD1} from '../scripts/bank/sqlite-d1.mjs';
-import {applyRoundControl, inspectRoundControl} from '../scripts/milestone4/round-control.mjs';
+import {applyRoundControl, inspectRoundControl, replaceDisabledRoundPolicy} from '../scripts/milestone4/round-control.mjs';
 
 const authority = {incarnation: 'a'.repeat(64), policyHash: 'b'.repeat(64)};
 const empty = {firestore: null, catalog: null};
@@ -180,6 +181,68 @@ test('a restored older enabled Firestore is revoked while D1 is offline; the old
   assert.deepEqual(await f.store.get('roundCreationChanges/v3'), receipt);
 });
 
+const replacement = (expected, policyHash = 'c'.repeat(64)) => ({
+  action: 'replace-disabled-policy', expected, policyHash, evidenceHash: 'd'.repeat(64),
+});
+
+test('a qualified disabled replacement keeps control history and refuses opening either gate', async t => {
+  const f = fixture(t);
+  const installed = await f.apply(install);
+  const enabled = await f.apply(plan('enable', installed), () => true);
+  const disabled = await f.apply(plan('disable', enabled));
+  const input = replacement(disabled);
+  for (const bad of [replacement(enabled), replacement(disabled, authority.policyHash),
+    {...input, evidenceHash: 'invalid'}, {...input, incarnation: authority.incarnation}]) {
+    await assert.rejects(replaceDisabledRoundPolicy(f.store, f.db, bad, () => true));
+  }
+  await assert.rejects(replaceDisabledRoundPolicy(f.store, f.db, input, () => false), /qualification/);
+  assert.deepEqual(await f.inspect(), disabled);
+  const qualified = (frozen, target) => {
+    assert.deepEqual(frozen, input);
+    assert.equal(target.enabled, false);
+    assert.equal(target.incarnation, authority.incarnation);
+    assert.throws(() => { frozen.expected.firestore.enabled = true; });
+    return true;
+  };
+  const [a, b] = await Promise.all([1,2].map(() => replaceDisabledRoundPolicy(f.store, f.db, input, qualified)));
+  assert.deepEqual(a, b);
+  assert.equal(a.catalog.policyHash, input.policyHash);
+  assert.equal(a.catalog.epoch, disabled.catalog.epoch + 1);
+  assert.deepEqual(a.firestore, {version: 4, enabled: false});
+  assert.deepEqual(await f.store.get('roundCreationChanges/v4'), input);
+  assert.deepEqual(await f.store.get('roundCreationChanges/v3'), plan('disable', enabled));
+  const restored = fixture(t);
+  await restored.apply(install);
+  await assert.rejects(replaceDisabledRoundPolicy(f.store, restored.db, input, qualified), /differs/);
+});
+
+test('lost D1 acknowledgement preserves the exact claimant, retries, and later compatible rollback advances', async t => {
+  const f = fixture(t);
+  const initial = await f.apply(install);
+  const input = replacement(initial);
+  const lossy = {prepare(query) {
+    const sql = f.db.prepare(query);
+    if (!query.startsWith('UPDATE round_authorization_control')) return sql;
+    return {bind(...values) { return {async all() {
+      await sql.bind(...values).all();
+      throw Error('lost update acknowledgement');
+    }}; }};
+  }};
+  await assert.rejects(replaceDisabledRoundPolicy(f.store, lossy, input, () => true), /lost update/);
+  assert.deepEqual(await f.store.get('roundCreation/control'), initial.firestore);
+  assert.deepEqual(await f.store.get('roundPolicyReplacements/v2'), input);
+  await assert.rejects(replaceDisabledRoundPolicy(f.store, f.db,
+    {...input, evidenceHash: 'e'.repeat(64)}, () => true), /Conflicting/);
+  const done = await replaceDisabledRoundPolicy(f.store, f.db, input, () => true);
+  const opened = await f.apply({...plan('enable', done), policyHash: input.policyHash}, () => true);
+  const paused = await f.apply({...plan('disable', opened), policyHash: input.policyHash});
+  const back = await replaceDisabledRoundPolicy(f.store, f.db, replacement(paused, authority.policyHash), () => true);
+  assert.equal(back.catalog.policyHash, authority.policyHash);
+  assert.equal(back.firestore.version, 5);
+  assert.equal(back.catalog.epoch, initial.catalog.epoch + 4);
+  await assert.rejects(replaceDisabledRoundPolicy(f.store, f.db, input, () => true), /changed/);
+});
+
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 const serviceTest = process.env.M4_CONTROL_LOCAL_SERVICES === '1';
 test('local workerd D1 and Enterprise Firestore commit, recover and revoke the same control', {skip: !serviceTest}, async t => {
@@ -202,6 +265,14 @@ test('local workerd D1 and Enterprise Firestore commit, recover and revoke the s
   assert.deepEqual(partial.firestore, disabled.firestore);
   const enabled = await applyRoundControl(store, db, enable, () => true);
   assert.deepEqual(await inspectRoundControl(store, db), enabled);
+  const now = Date.now();
+  const originalTicket = {intent_id: '1'.repeat(64), binding: '2'.repeat(64),
+    request_hash: '3'.repeat(64), selection_hash: '4'.repeat(64), policy_hash: authority.policyHash,
+    control_version: enabled.catalog.version, intent_expires: now + 120000};
+  const authorization = () => ({history_token: '5'.repeat(64), incarnation: authority.incarnation,
+    epoch: enabled.catalog.epoch, authorization_deadline: now + 29000});
+  const issue = await authorizeRound(db, originalTicket, authorization);
+  assert.ok(issue.receipt);
   const stop = plan('disable', enabled);
   const [a, b] = await Promise.all([applyRoundControl(store, db, stop), applyRoundControl(store, db, stop)]);
   assert.deepEqual(a, b);
@@ -209,4 +280,19 @@ test('local workerd D1 and Enterprise Firestore commit, recover and revoke the s
   assert.deepEqual(await store.get('roundCreationChanges/v3'), stop);
   assert.deepEqual(a.firestore, {version: 3, enabled: false});
   await assert.rejects(applyRoundControl(store, db, enable, () => true), /precondition|changed|superseded/);
+  const change = replacement(a);
+  const replaced = await replaceDisabledRoundPolicy(store, db, change, () => true);
+  assert.deepEqual(await replaceDisabledRoundPolicy(store, db, change, () => true), replaced);
+  assert.deepEqual(await inspectRoundControl(store, db), replaced);
+  assert.deepEqual(await store.get('roundPolicyReplacements/v4'), change);
+  const recovered = await authorizeRound(db, originalTicket, () => { throw Error('Must recover first'); });
+  assert.deepEqual(recovered.receipt, issue.receipt);
+  await assert.rejects(recoverRoundAuthorization(db, {...originalTicket, binding: '9'.repeat(64)}), /conflict/);
+  const stale = await authorizeRound(db, {...originalTicket, intent_id: '8'.repeat(64)}, authorization);
+  assert.equal(stale.receipt, null);
+  const rollback = replacement(replaced, authority.policyHash);
+  const rolledBack = await replaceDisabledRoundPolicy(store, db, rollback, () => true);
+  assert.equal(rolledBack.catalog.version, 5);
+  assert.equal(rolledBack.catalog.enabled, false);
+  assert.deepEqual(await store.get('roundCreationChanges/v4'), change);
 });
