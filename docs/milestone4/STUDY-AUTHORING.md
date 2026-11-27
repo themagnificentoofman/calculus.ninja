@@ -102,6 +102,10 @@ Describe what a recommended reading or exercise helps a learner decide. Bind its
 
 Compare a worked subproblem with active assessments after changes of variables, scaling, sign and endpoint conventions. Include historical answer-bearing replay corrections. Record each affected item and the specific teaching surface. When revising an exercise to avoid giving away a test problem, check the rest of the course for independent ways to reveal the same answer. Keep the original source and exposure evidence. Never retroactively erase a learner's prior exposure.
 
+To record a direct transfer, identify the answer-producing step that the teaching passage actually displays. Write down the substitution and the decision the learner still has to make. A lesson that states a general rule can prepare a learner for a new problem. For example, knowing the chain rule still leaves the learner to identify the inner and outer functions in a new composition. A worked derivation that already evaluates the same composition under renamed variables supplies stronger evidence. Keep an earlier player's access to a saved worked solution as a separate, account-specific finding.
+
+Before extending a hold to siblings, check a nearby example that uses the same rule and still requires its own mathematical decision. If a reviewer's derivation supplied the missing step, retain the comparison as partial. If a later review overturns a proposed withdrawal, preserve the failed judgment and rebuild the candidate from its verified parent so the withdrawn proposal cannot become a permanent exclusion.
+
 ## First use on a shared pathway
 
 Read the actual module in display order, including the label above a figure, the readiness prompt and every worked step. For a shared lesson, record where each route supplies the required concept and what a direct visitor can use. If the explanation comes later, move it earlier, give the learner a reachable prerequisite, or revise the example. Recheck the exercise and drill revision links together. Use the [writing guide](../engineering/WRITING.md) for examples and evidence requirements.
