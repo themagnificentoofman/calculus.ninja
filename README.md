@@ -1,32 +1,19 @@
-# calculus.ninja
+# Calculus Ninja
 
 Competitive calculus practice and multiplayer games, hosted independently of Google AI Studio. The existing React App Router interface runs with Vinext on Cloudflare Workers through Sites. Firebase continues to hold the existing accounts, profiles, games and chat; this migration does not copy or erase that data.
 
-## Local development
+## Start here
 
-Use Node 24 and the committed lockfile:
+For a local preview, use Node 24 and the committed lockfile.
 
 ```sh
 npm ci
-cp .env.example .dev.vars
 npm run dev
 ```
 
-Normal gameplay uses the indexed problem bank and makes zero OpenAI selection or grading calls. Configure `FIREBASE_SERVICE_ACCOUNT_JSON` with the existing dedicated database-scoped identity. Apply the D1 migration and import/activate a verified bank release before starting games. An empty filter returns an explicit insufficient-content response.
+The checked-in Firebase browser configuration identifies the existing project. Use the demo emulators for account and gameplay tests. Keep production credentials out of local development. A public checkout can run the app and its tests. A qualified release also needs the private assessment and Study evidence for the target version.
 
-See [the problem-bank guide](docs/bank/README.md) for reproducible 1,008 / 10,080 / 100,800-instance stages, mathematical validation, immutable revisions, offline Batch authoring, reports, benchmarks and rollout. Private generated payloads stay outside Git and browser assets. `OPENAI_API_KEY` is only needed by the optional offline administrative authoring CLI.
-
-```sh
-python3 -m venv .bank-venv
-.bank-venv/bin/python -m pip install -r scripts/bank/requirements.txt
-npm run typecheck
-npm test
-npm run build
-```
-
-The CI workflow performs these checks without an API key or access to production data. Signed-in production Firebase requests and hosted bank imports require runtime configuration and separate deployment verification.
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting, Firebase domain setup, scaling limits and the rollback process.
+The [contributor guide](CONTRIBUTING.md) maps changes to their owners in the code, local checks and release gates. Use the [writing guide](docs/engineering/WRITING.md) when editing text for players, learners or maintainers. The [problem-bank guide](docs/bank/README.md) covers offline authoring and verification. The [deployment guide](DEPLOYMENT.md) covers the registered Site, the database and rollback. Ordinary gameplay makes zero model calls.
 
 ## Contact form
 
