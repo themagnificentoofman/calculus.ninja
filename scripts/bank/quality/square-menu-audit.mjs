@@ -11,8 +11,9 @@ export function predictLargestPositiveSquare(choices) {
   let maximum = 0n;
   let predictedId = null;
   for (const choice of choices) {
-    const {integer, rationalSquare} = features(choice.math.trim().replace(/^\+(?=\d)/, ''));
-    if (integer === null) return null;
+    const literal = choice.math.trim();
+    if (!/^[+-]?\d+$/.test(literal)) return null;
+    const {integer, rationalSquare} = features(literal.replace(/^\+/, ''));
     if (!rationalSquare || integer <= 0n || integer < maximum) continue;
     if (integer === maximum) {
       predictedId = null;

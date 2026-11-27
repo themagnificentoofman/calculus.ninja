@@ -13,7 +13,7 @@ test('combine square form with exact magnitude independently of displayed order'
 });
 
 test('abstain on tied maxima, missing positive squares and unsupported choices', () => {
-  for (const values of [['9','09','4','3'], ['-9','0','2','3'], ['4','9','25','x'], ['1','4']]) {
+  for (const values of [['9','09','4','3'], ['-9','0','2','3'], ['4','9','25','x'], ['1','4'], ['9','3','2','1\\quad6'], ['9','2','3','\\left16'], ['9','2','3','1 6']]) {
     assert.equal(predictLargestPositiveSquare(choices(values)), null);
   }
 });
