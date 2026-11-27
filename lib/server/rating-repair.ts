@@ -1,6 +1,6 @@
-import {isQaProfile} from './qa-public-profile.ts';
 import { clampProfileRatings } from '../rating-floor.ts';
-import { identifier, publicProfile } from './game-engine.ts';
+import { identifier } from './game-engine.ts';
+import { writePublicProfile } from './public-profile-projection.ts';
 import type { Store } from './firestore-admin.ts';
 
 export async function repairRatingPage(store: Store, ids: string[], apply: boolean) {
@@ -14,8 +14,7 @@ export async function repairRatingPage(store: Store, ids: string[], apply: boole
       const needsRepair = repaired !== profile || !!projection && clampProfileRatings(projection) !== projection;
       if (apply && needsRepair) {
         tx.set(`users/${uid}`, repaired);
-        if (isQaProfile(repaired)) tx.delete(`users_public/${uid}`);
-        else tx.set(`users_public/${uid}`, publicProfile({ ...repaired, uid }));
+        writePublicProfile(tx, uid, repaired);
       }
       return needsRepair;
     });

@@ -19,3 +19,25 @@ test('withdrawal proof fits the same expiring authenticated request bound', asyn
  const req=new Request('https://calculus.ninja/api/runtime-qa',{method:'POST',body,headers:{'x-qa-time':time,'x-qa-hash':hash,'x-qa-signature':sign(null,Buffer.from(runtimeQaMessage(time,hash)),privateKey).toString('base64')}});
  assert.equal(await authorizeRuntimeQa(req,key,String(Date.now()+60000),body),200);
 });
+
+test('runtime QA rechecks the credential window after reading the signed body', async t => {
+  const start = Date.now();
+  t.mock.timers.enable({apis: ['Date'], now: start});
+  const {privateKey, publicKey} = generateKeyPairSync('ed25519');
+  const key = publicKey.export({format: 'der', type: 'spki'}).toString('base64');
+  const time = String(start);
+  const hash = createHash('sha256').update('{}').digest('hex');
+  const signature = sign(null, Buffer.from(runtimeQaMessage(time, hash)), privateKey).toString('base64');
+  const body = new ReadableStream({
+    pull(controller) {
+      controller.enqueue(new TextEncoder().encode('{}'));
+      controller.close();
+      t.mock.timers.setTime(start + 1000);
+    },
+  }, {highWaterMark: 0});
+  const request = new Request('https://example.test/api/runtime-qa', {
+    method: 'POST', body, duplex: 'half',
+    headers: {'x-qa-time': time, 'x-qa-hash': hash, 'x-qa-signature': signature},
+  });
+  assert.equal(await authorizeRuntimeQa(request, key, String(start + 1000)), 403);
+});
