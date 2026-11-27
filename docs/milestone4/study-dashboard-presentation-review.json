@@ -25,5 +25,13 @@
     "components/study/StudyDashboard.tsx": "1a672c288ced9bb2c1d9a1b9add51b6ae25ec382587845f842f49e371fd3609b",
     "components/study/StudyVisit.tsx": "a48040a942da137f799d1b8819a18fece20fcd879c726f61b195ef14ef576e13",
     "lib/study/dashboard.mjs": "bc0783cdeed3b69dbf8fd17f9e41dc09779ecda222077b62e115f8b840d8a3e8"
+  },
+  "testPractice": {
+    "version": "study-test-practice-review-1",
+    "before": "9d7c86367244be629273ee4c86d484bf6b7be301777861986271ada9939ca124",
+    "after": "d183942b8c59345d690a0bd58d5dae0811d7ea957c09e227e596ea6c24a0d87b",
+    "predecessor": "ab5165fdaeca81a6316dfd0f8a3049b5c81e63242f1e417711ed9d172a9e575d",
+    "successor": "7935d1272b253a1c2dfdc36612a834ea715468aa47639ef7c2a4dcb5836d94a1",
+    "review": "The Test route binds replay observations to the initiating account and labels an unconfirmed submission. Its Study link, drill parameters, return target, question rendering and scoring are preserved. The native Study route and account-specific regressions cover these two behaviors at their respective boundaries."
   }
 }

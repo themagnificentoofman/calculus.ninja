@@ -17,6 +17,7 @@ import {CancelledRound} from '@/components/CancelledRound';
 import {auth} from '@/firebase';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { OperationType, handleFirestoreError } from '@/lib/firestore-errors';
 
@@ -104,7 +105,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
 
   const handleOptionSelect = (index: number) => {
     if (saving || showExplanation) return;
-    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
+    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);
     setSelectedOption(index);
   };
 
@@ -122,13 +123,13 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setShowExplanation(true);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 
   const nextQuestion = () => {
     if (saving || !showExplanation) return;
-    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});
+    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1); setSelectedOption(null); setShowExplanation(false);
     } else { playSound('end'); setFinished(true); }
@@ -198,7 +199,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
 
   if (questions.length > 0) {
     const q = questions[currentIndex];
-    if(q.responseFormat==='free-response')return <FreeResponseRound key={`${gameId}:${currentIndex}`} game={roundGame!} id={gameId!} uid={user.uid} index={currentIndex} onResult={(g,finalized)=>{setRoundGame(g);if(g.questionMix)setQuestionMix(g.questionMix);setCategory(g.category||'all');setDifficulty(g.difficulty||'medium');setQuestions(g.questions||[]);setScore(g.scores[user.uid]||0);setShowExplanation(finalized);}} onNext={()=>{if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});setCurrentIndex(currentIndex+1);setSelectedOption(null);setShowExplanation(false);}} onFinish={()=>setFinished(true)}/>;
+    if(q.responseFormat==='free-response')return <FreeResponseRound key={`${gameId}:${currentIndex}`} game={roundGame!} id={gameId!} uid={user.uid} index={currentIndex} onResult={(g,finalized)=>{setRoundGame(g);if(g.questionMix)setQuestionMix(g.questionMix);setCategory(g.category||'all');setDifficulty(g.difficulty||'medium');setQuestions(g.questions||[]);setScore(g.scores[user.uid]||0);setShowExplanation(finalized);}} onNext={()=>{if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);setCurrentIndex(currentIndex+1);setSelectedOption(null);setShowExplanation(false);}} onFinish={()=>setFinished(true)}/>;
     const isCorrect = selectedOption === q.correctIndex;
 
     return (

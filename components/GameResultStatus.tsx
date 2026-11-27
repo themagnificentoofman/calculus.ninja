@@ -11,7 +11,7 @@ export function GameResultStatus({ gameId }: { gameId: string | null }) {
     if (!gameId || !user) return;
     setError('');
     try { setReceipt(await gameProgress.claimResult(gameId, user.uid)); }
-    catch { setError('Could not save your result. Reconnect and retry.'); }
+    catch { setError('We couldn’t confirm your result. Reconnect and retry.'); }
   }, [gameId, user]);
   useEffect(() => { setReceipt(null); void save(); }, [save]);
   if (error) return <div role="alert" className="mb-4 text-sm text-red-300">{error} <button className="underline" onClick={save}>Retry save</button></div>;

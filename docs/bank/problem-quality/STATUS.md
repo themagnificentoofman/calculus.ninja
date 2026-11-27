@@ -1,6 +1,23 @@
 # Focused multiple-choice quality release — in progress
 
-The user request is the acceptance contract. Milestone 4 remains deferred.
+## November 26, 2026 · Engineering Baseline rollout
+
+GitHub main at intake was `d21a05e`. The existing Site reported a successful version 51 deployment from `c972c938`. Its Git tree, qualified private application and published archive have separate identities. The historical November 12 transfer, November 18 increment, November 19 qualification package and dashboard evidence were reconciled before review. The qualified v51 application was restored from 483 application paths, 25 overlays and 13,237 external inputs. The missing historical tree `6071840` remains outside this recovery.
+
+| Responsibility | Established rule or source | Change in this rollout |
+| --- | --- | --- |
+| General engineering and ownership | Root and directory AGENTS files already govern preservation, evidence and handoffs. | Adopt the unmodified Engineering Policy Kit v1.0.0 baseline, SHA-256 `725b7589853eafda052b68365ff6dab2fa1a50f19bd85d511dea859c06f93475`, and route general work from the root. |
+| Contributor and player writing | Public-copy rules, notation and solution standards, and Study authoring govern the specific domains. | Add the writing guide and contributor entry point. Retain the stricter subject-specific admission and release rules. |
+| Public and private source | Public admission placeholders and private release profiles serve different purposes. | Correct stale guidance that described an empty public registry as production state. Verify source profiles against their individual receipts. |
+| Review and operations | Submission, exposure, account isolation, CI, fixture suppression and cumulative budgets already have owners. | Correct verified writer, client-action and copy discrepancies. Preserve independent mathematical verifiers and the established policy transition controls. |
+
+The private roster identifies 19 page, layout and navigation entry files, 57 reachable TSX sources and 14 API handlers. Study has 79 lessons, 73 paths, four tier guides and one relationship document. The retained release has 6,000 eligible multiple-choice and 5,977 free-response items. The physical snapshot includes 114,982 revisions across those formats. Eligibility, exposure, historic storage, completed editorial review and use by an individual learner are separate dimensions. Private item-level rosters, candidate revisions, findings and held work are in the November 26 rollout checkpoint.
+
+PR #26 carries public changes. The dashboard, previous bank admissions and historical receipts remain the starting evidence for any release. The open review includes learner prerequisites, projected assessment wording, earlier teaching exposure, dependency qualification and a source-bound change to the creation policy. A new publication and bank activation each require their own verified state and authorization.
+
+### Earlier status
+
+The following entries describe the earlier focused multiple-choice release. At that time, Milestone 4 was deferred.
 
 ## Pinned baseline and bounded findings
 

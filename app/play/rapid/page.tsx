@@ -15,6 +15,7 @@ import {PendingRoundStart,usePendingRoundStart} from '@/components/PendingRoundS
 import {CancelledRound} from '@/components/CancelledRound';
 import { playSound } from '@/lib/sounds';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { nextUnanswered } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { auth, db } from '@/firebase';
@@ -146,7 +147,7 @@ function RapidPractice() {
   }, [gameId, finished, finishGame,roundGame?.status]);
 
   const handleOptionSelect = (index: number) => {
-    if (!saving && !finished && countdown === null) {if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});setSelectedOption(index);}
+    if (!saving && !finished && countdown === null) {if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);setSelectedOption(index);}
   };
 
   const checkAnswer = async () => {
@@ -160,11 +161,11 @@ function RapidPractice() {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setRoundGame(result.game);deadlineRef.current = result.game.deadline || 0;
-      observeReplay(gameId,'automatic_advance',{questionIndex:currentIndex});
+      observeReplay(gameId,'automatic_advance',{questionIndex:currentIndex},user?.uid);
       setScore(result.game.scores[user.uid]); setSelectedOption(null);
       if (result.game.status === 'finished') { setFinished(true); finishedRef.current = true; }
       else setCurrentIndex(nextUnanswered(result.game, user.uid));
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 

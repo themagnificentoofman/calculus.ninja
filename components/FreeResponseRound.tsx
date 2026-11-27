@@ -2,6 +2,7 @@
 import {displayVerdict} from '@/lib/math-answer/feedback.mjs';
 import {lazy,Suspense,useState,useRef} from 'react';
 import type {GameSession,FreeResponseAnswer} from '@/lib/game-progress';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import {gameProgress} from '@/lib/game-session';
 import {ProblemStatement} from './ProblemStatement';
 import {SolutionSteps} from './SolutionSteps';
@@ -14,7 +15,7 @@ export function FreeResponseRound({game,id,uid,index,onResult,onNext,onFinish}:{
  const question=game.questions?.[index],answer=game.answers?.[uid]?.[index] as FreeResponseAnswer|undefined;
  const [source,setSource]=useState(''),[pending,setPending]=useState(false),[error,setError]=useState(''),[feedback,setFeedback]=useState<{outcome:string;feedback:string;interpretation:string}|null>(null),busy=useRef(false);
  if(question?.responseFormat!=='free-response')return null;
- const submit=async(action:'fr-submit'|'fr-skip'|'fr-reveal')=>{if(busy.current||answer)return;busy.current=true;setPending(true);setError('');try{const result=await gameProgress.submitFreeResponse(id,uid,index,action,source);setFeedback(result.verdict||null);onResult(result.game,!!result.answer);}catch(e){setError(e instanceof Error?e.message:'The answer was not saved. Retry with your draft.');}finally{busy.current=false;setPending(false);}};
+ const submit=async(action:'fr-submit'|'fr-skip'|'fr-reveal')=>{if(busy.current||answer)return;busy.current=true;setPending(true);setError('');setFeedback(null);try{const result=await gameProgress.submitFreeResponse(id,uid,index,action,source);setFeedback(result.verdict||null);onResult(result.game,!!result.answer);}catch(e){setError(answerSubmissionError(e));}finally{busy.current=false;setPending(false);}};
  const shown=answer||feedback,shownCopy=displayVerdict(shown),canonical=(question as any).canonicalAnswer;
  return <main className="mx-auto min-h-screen max-w-4xl px-4 py-10"><div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Free-response practice</h1><p className="mt-1 text-sm text-zinc-400">Question {index+1} of {game.questions!.length} · <span className="capitalize">{question.topic} · {question.difficulty}</span></p></div><a className="text-sm text-emerald-400 underline" href="/help#formatting" target="_blank" rel="noreferrer">Answer formatting guide</a></div>
   <section className="mb-5 min-w-0 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5 sm:p-8"><ProblemStatement math={question.latexProblem} legacy={question.legacy}/><QuestionAssumptions assumptions={question.assumptions}/><ContentAttribution credit={question.contentNotice}/></section>

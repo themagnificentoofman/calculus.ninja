@@ -57,7 +57,7 @@ export default function LeaderboardPage() {
                 <Trophy className="shrink-0 w-8 h-8 sm:w-10 sm:h-10 text-yellow-500" />
                 Leaderboard
               </h1>
-              <p className="dark:text-zinc-400 text-zinc-500">Top players ranked by rating.</p>
+              <p className="dark:text-zinc-400 text-zinc-500">The top 100 players by competitive rating.</p>
             </div>
 
             <span className="text-sm text-zinc-500">All-time rating</span>
@@ -71,12 +71,13 @@ export default function LeaderboardPage() {
             </div>
 
             {error ? <p role="alert" className="p-6 text-red-400">{error}</p> : loading ? (
-              <div className="p-12 flex justify-center">
+              <div role="status" className="p-12 flex justify-center">
+                <span className="sr-only">Loading the leaderboard…</span>
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
               </div>
             ) : users.length === 0 ? (
               <div className="p-12 text-center dark:text-zinc-500 text-zinc-400">
-                No players found.
+                No rated players to display yet.
               </div>
             ) : (
               <div className="divide-y dark:divide-zinc-800/50 divide-zinc-200">

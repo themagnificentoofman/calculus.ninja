@@ -16,7 +16,6 @@ export default function HelpPage() {
           {/* Header */}
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Help & Information</h1>
-            <p className="text-lg sm:text-xl text-zinc-400">Everything you need to know about Calculus Ninja.</p>
             <nav className="mt-5 flex flex-wrap gap-3 text-sm" aria-label="Help sections"><a href="#formatting" className="text-emerald-400 underline">Answer formatting guide</a><a href="#notation" className="text-emerald-400 underline">Notation</a><a href="#sources" className="text-emerald-400 underline">Sources</a><a href="#legacy" className="text-emerald-400 underline">Legacy problems</a></nav>
           </div>
 
@@ -40,6 +39,7 @@ export default function HelpPage() {
               <li><strong>No cheating:</strong> Using external calculators (like WolframAlpha, Symbolab) or AI tools during ranked matches is strictly prohibited.</li>
               <li><strong>Time limits:</strong> Rapid uses the time limit you choose, and each incorrect answer removes 5 seconds. In PvP and Multiplayer, you race against others.</li>
               <li><strong>Scoring:</strong> Correct answers increase your score and earn XP. Rating changes only after competitive matches. Incorrect answers may result in penalties depending on the game mode.</li>
+              <li><strong>Match results:</strong> Players who participate rank ahead of those who submit no answers. Players who participate and tie on score share a place. PvP ends when both players finish. A target-score match also ends when a player reaches the target. Timed games use a shared deadline. Other competitive games have a 30-minute limit.</li>
               <li><strong>Respect others:</strong> Maintain a positive environment in multiplayer modes.</li>
             </ul>
           </section>
@@ -53,7 +53,7 @@ export default function HelpPage() {
               <h2 className="text-xl sm:text-2xl font-bold">Problem Sources</h2>
             </div>
             <p className="text-zinc-300 leading-relaxed mb-4">
-              Calculus Ninja offers original problems and credited adaptations. Problems are checked for mathematical accuracy, clear explanations, and readable notation. If you find an error, use Report a problem in the answer review. For an adapted problem, its review and saved replay include the original source, an explanation of the changes, and the applicable content license. Topics include:
+              Calculus Ninja offers original problems and credited adaptations. Problems are checked for mathematical accuracy, clear explanations, and readable notation. If you find an error, choose Report Issue in the answer review. For an adapted problem, its review and saved replay include the original source, an explanation of the changes, and the applicable content license. Topics include:
             </p>
             <ul className="space-y-2 text-zinc-300 list-disc list-inside">
               <li>Integration</li>
@@ -67,7 +67,7 @@ export default function HelpPage() {
 
           <section className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl p-5 sm:p-8">
             <h2 className="text-xl font-bold mb-4">Difficulty and problem reports</h2>
-            <p className="text-zinc-300 leading-relaxed">Easy uses fundamental rules; Medium combines standard techniques; Hard requires several steps or careful domain and convergence analysis; Olympiad often calls for recognizing an unexpected identity or transformation. Difficulty labels describe the reasoning a problem is likely to require; they do not predict your solving time. A category may be unavailable while its problems are under review.</p>
+            <p className="text-zinc-300 leading-relaxed">Easy problems use fundamental rules. Medium problems combine familiar techniques. A Hard problem may take several steps or require a careful check of domains or convergence. An Olympiad problem often hinges on an unexpected identity or transformation. These labels describe the reasoning involved. Your solving time may vary. A category may be unavailable while its problems are under review.</p>
             <p className="mt-4 text-zinc-400 leading-relaxed">Include the problem ID and revision from the answer review when reporting an issue. Corrections preserve the questions and results in your previous games. New rounds avoid duplicate questions and limit closely related problems. If there are too few suitable unseen problems for a requested round, choose another topic or difficulty.</p>
           </section>
 
@@ -80,10 +80,10 @@ export default function HelpPage() {
               <h2 className="text-xl sm:text-2xl font-bold">Ratings & Ranks</h2>
             </div>
             <p className="text-zinc-300 leading-relaxed mb-6">
-              Rating measures competitive results in PvP and Multiplayer. Each opponent is compared separately using both players’ ratings from the start of the match. An upset earns more than an expected win; a tie counts as half a win. Changes are balanced between players and bounded by 32 points per match, regardless of room size. Difficulty rewards XP, not extra rating. Empty and all-wrong games do not transfer rating. PvP ends when both players finish; target-score Multiplayer ends when the target is reached. Timed games use a shared deadline, and other competitive games have a 30-minute limit.
+              In PvP and Multiplayer, your rating reflects how you finish against each opponent. Beating a higher-rated player earns more than beating a lower-rated player. A tie counts as half a win. Your rating can change by at most 32 points per match, regardless of room size or difficulty. If nobody solves a problem, everyone keeps their rating.
             </p>
             <p className="text-zinc-400 mb-4 leading-relaxed">
-              Overall rating is independent of topic ratings. Topic ratings compare only the same questions that both players attempted; unseen questions do not count as mistakes. Equal scores share a position. A player who never answers cannot win over someone who participated. Existing ratings are preserved, start at zero for new players, and can go below zero. Unrated means no qualifying competitive result yet.
+              Overall and topic ratings start at zero and cannot fall below zero. For a topic rating, only questions in that topic that both players attempted count. You are Unrated until your first qualifying competitive result. After that, a zero rating is Bronze.
             </p>
             <p className="text-zinc-400 mb-4 leading-relaxed">
               Every correct answer earns 10 XP (Easy), 20 XP (Medium), 30 XP (Hard), or 50 XP (Olympiad), in every mode. There are no placement bonuses. Level L requires 100 × L² total XP: level 1 needs 100, level 2 needs 400, and level 3 needs 900. Topic levels follow the same curve.

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   title: 'Calculus Ninja',
   applicationName: 'Calculus Ninja',
   icons: { icon: '/ninja-logo.png', apple: '/ninja-logo.png' },
-  description: 'A competitive calculus trainer and multiplayer game with various modes, ratings, and step-by-step LaTeX explanations.',
+  description: 'Practice calculus at your own pace, race the clock, or compete with other players. Review worked solutions after each round.',
 };
 
 export default async function RootLayout({children}: {children: React.ReactNode}) {

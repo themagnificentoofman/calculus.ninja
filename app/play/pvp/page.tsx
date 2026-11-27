@@ -20,6 +20,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { playSound } from '@/lib/sounds';
 import { hasRating } from '@/lib/progression';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { gameStandings, nextUnanswered, type GameSession, type MultipleChoiceSession, requireMultipleChoiceSession } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { Chat } from '@/components/Chat';
@@ -229,7 +230,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     setLoading(true); setGenerationError('');
     try {
       const id = idToJoin.trim();
-      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid game ID.');
+      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid lobby code.');
       await gameProgress.joinGame(id, user.uid, 'pvp',source);
       setGameId(id);
     } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not join this game.'); }
@@ -238,7 +239,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
   const handleOptionSelect = (index: number) => {
     if (saving || showExplanation || !gameData || !gameData.questions || !user || !gameId) return;
-    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
+    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);
     setSelectedOption(index);
   };
 
@@ -257,13 +258,13 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setShowExplanation(true);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 
   const nextQuestion = () => {
     if (saving || !showExplanation) return;
-    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});
+    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);
     setCurrentIndex(currentIndex + 1); setSelectedOption(null); setShowExplanation(false);
   };
 
@@ -458,7 +459,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           <h2 className="text-3xl font-bold mb-2">Waiting for Opponent...</h2>
           <p className="mt-2 mb-4 text-sm text-zinc-500">{gameData.visibility === 'public' ? 'Public Lobby · Listed in the live catalog' : 'Private Lobby · Join by code or invitation'}</p>
           {presenceError && <p role="status" className="mb-4 text-sm text-amber-300">{presenceError}</p>}
-          <p className="text-zinc-400 mb-6">Share this Game ID with your friend:</p>
+          <p className="text-zinc-400 mb-6">Share this lobby code with your opponent.</p>
 
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-6 font-mono text-base sm:text-xl break-all text-red-400 select-all">
             {gameId}

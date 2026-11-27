@@ -21,6 +21,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { playSound } from '@/lib/sounds';
 import { hasRating } from '@/lib/progression';
 import { apiRequest, gameProgress } from '@/lib/game-session';
+import {answerSubmissionError} from '@/lib/api-request.mjs';
 import { gameStandings, nextUnanswered, type GameSession, type MultipleChoiceSession, requireMultipleChoiceSession } from '@/lib/game-progress';
 import { GameResultStatus, GameSaveError } from '@/components/GameResultStatus';
 import { Chat } from '@/components/Chat';
@@ -229,7 +230,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     setLoading(true); setGenerationError('');
     try {
       const id = idToJoin.trim();
-      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid game ID.');
+      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid lobby code.');
       await gameProgress.joinGame(id, user.uid, 'multiplayer',source);
       setGameId(id);
     } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not join this game.'); }
@@ -250,7 +251,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
   const handleOptionSelect = (index: number) => {
     if (saving || showExplanation || !gameData || !gameData.questions || !user || !gameId) return;
-    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
+    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);
     setSelectedOption(index);
   };
 
@@ -269,13 +270,13 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setShowExplanation(true);
-    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Answer was not saved. Please retry.'); }
+    } catch (error) { setSaveError(answerSubmissionError(error)); }
     finally { busy.current = false; setSaving(false); }
   };
 
   const nextQuestion = () => {
     if (saving || !showExplanation) return;
-    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});
+    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);
     setCurrentIndex(currentIndex + 1); setSelectedOption(null); setShowExplanation(false);
   };
 
@@ -384,7 +385,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                 Win Condition
                 <Info className="w-4 h-4 text-zinc-500 cursor-help" />
                 <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-zinc-800 text-xs text-zinc-300 rounded shadow-xl z-10 border border-zinc-700 normal-case font-normal">
-                  Choose how the game ends: either the first player to reach a target score, or the player with the highest score when time runs out.
+                  Play to a target score or compete for the highest score within a time limit. A match also ends when everyone runs out of questions.
                 </div>
               </label>
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -416,7 +417,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
                     Target Score
                     <Info className="w-4 h-4 text-zinc-500 cursor-help" />
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-zinc-800 text-xs text-zinc-300 rounded shadow-xl z-10 border border-zinc-700 normal-case font-normal">
-                      The number of correct answers needed to win the game.
+                      The first player to reach this many points wins. If penalties are on, each wrong answer costs one point.
                     </div>
                   </label>
                   <div className="flex items-center gap-4">
@@ -538,7 +539,7 @@ function MultiplayerMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           <h2 className="text-3xl font-bold mb-2">Lobby</h2>
           <p className="mt-2 mb-4 text-sm text-zinc-500">{gameData.visibility === 'public' ? 'Public Lobby · Listed in the live catalog' : 'Private Lobby · Join by code or invitation'}</p>
           {presenceError && <p role="status" className="mb-4 text-sm text-amber-300">{presenceError}</p>}
-          <p className="text-zinc-400 mb-8">Share this Game ID with your friends:</p>
+          <p className="text-zinc-400 mb-8">Share this lobby code with the other players.</p>
           
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-8 font-mono text-base sm:text-xl break-all text-purple-400 select-all">
             {gameId}

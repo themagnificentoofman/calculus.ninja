@@ -42,9 +42,23 @@ export const STUDY_PRESENTATION_FILES = [
 export const studyPresentationSources=()=>Object.fromEntries(STUDY_PRESENTATION_FILES.map(path=>[path,sha(readFileSync(resolve(root,path)))]));
 export const currentStudyPresentationHash=()=>sha(canonical(studyPresentationSources()));
 
+// A Study drill enters the Test page. Keep its reviewed gameplay-only change
+// separate from the historical dashboard amendment and its presentation hash.
+export function beforeTestPracticeReview(review,sources){
+ const path='app/play/test/page.tsx';
+ assert(review?.version==='study-test-practice-review-1'&&isHash(review.before)&&
+  review.after===sources[path]&&sha(canonical(sources))===review.successor,
+  'Study Test practice source differs from the reviewed change');
+ const predecessor={...sources,[path]:review.before};
+ assert(sha(canonical(predecessor))===review.predecessor,'Study Test practice predecessor changed');
+ return predecessor;
+}
 function studyDashboardPresentation(amendment, sources=studyPresentationSources()){
  assert(amendment?.version==='study-dashboard-presentation-1','Invalid dashboard presentation review');
  const scope=['components/study/StudyLibrary.tsx','components/study/StudyLessonReader.tsx','components/study/StudyMark.tsx','lib/study/marks.mjs'];
+ if(amendment.testPractice){
+  sources=beforeTestPracticeReview(amendment.testPractice,sources);
+ }
  const baseline=Object.fromEntries(Object.entries(sources).filter(([path])=>!dashboardSources.includes(path)));
  for(const path of scope){
   const evidence=amendment.changes?.[path];

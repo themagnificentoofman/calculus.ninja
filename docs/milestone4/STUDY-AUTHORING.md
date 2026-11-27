@@ -101,3 +101,9 @@ An integrated lesson must retain actual prerequisite exercise targets, concept a
 Describe what a recommended reading or exercise helps a learner decide. Bind its recommendation and difficulty to the reviewed lesson, exercise revision, reading destination and displayed title. An optional reference can remain useful without a star. A learner's reading mark, self-reported solving status and verified assessment result each describe a different event.
 
 Compare a worked subproblem with active assessments after changes of variables, scaling, sign and endpoint conventions. Include historical answer-bearing replay corrections. Record each affected item and the specific teaching surface. When revising an exercise to avoid giving away a test problem, check the rest of the course for independent ways to reveal the same answer. Keep the original source and exposure evidence. Never retroactively erase a learner's prior exposure.
+
+## First use on a shared pathway
+
+Read the actual module in display order, including the label above a figure, the readiness prompt and every worked step. For a shared lesson, record where each route supplies the required concept and what a direct visitor can use. If the explanation comes later, move it earlier, give the learner a reachable prerequisite, or revise the example. Recheck the exercise and drill revision links together. Use the [writing guide](../engineering/WRITING.md) for examples and evidence requirements.
+
+A previous lesson revision can continue to explain an assessed construction after its successor changes. Compare outcomes under translations, changes of units and rescaling. Preserve the old teaching and assessment identities and their exposure relationship in the private record. Refresh admission for the successor before changing the served documents.
