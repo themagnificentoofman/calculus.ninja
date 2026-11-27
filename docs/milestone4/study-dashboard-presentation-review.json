@@ -33,5 +33,13 @@
     "predecessor": "ab5165fdaeca81a6316dfd0f8a3049b5c81e63242f1e417711ed9d172a9e575d",
     "successor": "7935d1272b253a1c2dfdc36612a834ea715468aa47639ef7c2a4dcb5836d94a1",
     "review": "The Test route binds replay observations to the initiating account and labels an unconfirmed submission. Its Study link, drill parameters, return target, question rendering and scoring are preserved. The native Study route and account-specific regressions cover these two behaviors at their respective boundaries."
+  },
+  "drillAvailability": {
+    "version": "study-drill-availability-review-1",
+    "before": "61c2d16aa2608172234697cd5588b59ef242d0b780c517ac53d4272e113d023a",
+    "after": "64304196fded0d5afdddce547a446697fd9ec34cfae3c01331b4dba65e2ea627",
+    "predecessor": "7935d1272b253a1c2dfdc36612a834ea715468aa47639ef7c2a4dcb5836d94a1",
+    "successor": "9d0fdec00472b2346bdbdcc1019744e8f9adcfc3d2cf6af46351d45056ea7223",
+    "review": "A stale, disabled or unreadable format control now leaves drill availability unknown. Verified empty and offered formats retain separate messages and links. The reviewed change is confined to the two lines of explanatory text in the Study lesson reader. Its teaching blocks, menu and answer release, routes, practice parameters and saved marks remain bound to their earlier reviews."
   }
 }
