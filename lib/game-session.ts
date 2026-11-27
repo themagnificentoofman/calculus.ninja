@@ -30,8 +30,8 @@ const seats=createSeatClient({command,currentUid:()=>auth.currentUser?.uid,stora
 export const beginLobbyPagehide=(uid:string|undefined,body:ReturnType<typeof currentLobbyDeparture>)=>seats.pagehide(uid,body);
 export const currentLobbyDeparture=(uid:string|undefined,id:string|null)=>seats.departure(uid,id);
 export const gameProgress = {
-  async createGame(_uid: string, mode: GameMode, set: { questionSetId: string }, options: any) {
-    return (await apiRequest('games', { action: 'create', mode, questionSetId: set.questionSetId, options })).id as string;
+  async createGame(uid: string, mode: GameMode, set: { questionSetId: string }, options: any) {
+    return (await apiRequest('games', { action: 'create', mode, questionSetId: set.questionSetId, options }, uid)).id as string;
   },
   async getGame(id: string, uid=auth.currentUser?.uid) { return (await seats.view(uid,id)).game as GameSession; },
   roomDestination: (uid:string,id:string,mode:string,result:Record<string,any>) => seats.toRoom(uid,id,mode,result),
@@ -43,30 +43,32 @@ export const gameProgress = {
   async submitAnswer(id:string,uid:string,index:number,selectedOption:number){
     const key=`answer-request:${uid}:${id}:${index}`;let requestId:string=crypto.randomUUID();
     try{requestId=sessionStorage.getItem(key)||requestId;sessionStorage.setItem(key,requestId);}catch{}
-    observeReplay(id,'submission_started',{questionIndex:index,selectedOption,requestId});
-    try{const result=await command('answer',id,{index,selectedOption,requestId});observeReplay(id,'answer_response',{questionIndex:index,requestId,serverEventId:result.answer?.serverEventId});return result;}
-    catch(error){observeReplay(id,'submission_rejected',{questionIndex:index,requestId,reason:'transport-uncertain'});throw error;}
+    observeReplay(id,'submission_started',{questionIndex:index,selectedOption,requestId},uid);
+    try{const result=await command('answer',id,{index,selectedOption,requestId},uid);observeReplay(id,'answer_response',{questionIndex:index,requestId,serverEventId:result.answer?.serverEventId},uid);return result;}
+    catch(error){observeReplay(id,'submission_rejected',{questionIndex:index,requestId,reason:'transport-uncertain'},uid);throw error;}
   },
   async submitFreeResponse(id:string,uid:string,index:number,action:'fr-submit'|'fr-skip'|'fr-reveal',source:string){
     const body={index,...(action==='fr-submit'?{source}:{})},key=`fr-request:${uid}:${id}:${index}`,identity=JSON.stringify({action,...body});let requestId=crypto.randomUUID();
     try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.identity===identity&&typeof saved.requestId==='string')requestId=saved.requestId;localStorage.setItem(key,JSON.stringify({identity,requestId}));}catch{}
-    observeReplay(id,'submission_started',{questionIndex:index,requestId});
-    try{const result=await command(action,id,{...body,requestId});observeReplay(id,'answer_response',{questionIndex:index,requestId,serverEventId:result.answer?.serverEventId});return result;}
-    catch(error){observeReplay(id,'submission_rejected',{questionIndex:index,requestId,reason:'transport-uncertain'});throw error;}
+    observeReplay(id,'submission_started',{questionIndex:index,requestId},uid);
+    try{const result=await command(action,id,{...body,requestId},uid);observeReplay(id,'answer_response',{questionIndex:index,requestId,serverEventId:result.answer?.serverEventId},uid);return result;}
+    catch(error){observeReplay(id,'submission_rejected',{questionIndex:index,requestId,reason:'transport-uncertain'},uid);throw error;}
   },
-  completeGame: (id: string, _uid: string) => command('complete', id),
-  async claimResult(id: string, _uid: string) { return (await command('claim', id)).receipt; },
-  syncPendingResults: (_uid: string) => command('sync'),
+  completeGame: (id: string, uid: string) => command('complete', id, {}, uid),
+  async claimResult(id: string, uid: string) { return (await command('claim', id, {}, uid)).receipt; },
+  syncPendingResults: (uid: string) => command('sync', undefined, {}, uid),
   watchGame(id: string, uid: string, callback: (game: GameSession) => void, onError: (error: unknown) => void, onUnavailable?: () => void) {
     return observeGameState(uid,
       (next, error) => onSnapshot(doc(db, 'games', id), s => { if (s.exists()) next(normalizeLobbyView(s.data())); else if (!s.metadata.fromCache) next(null); }, error),
       (next, error) => onSnapshot(doc(db, 'games', id, 'reviews', uid), s => next(s.data()), error),
-      (game, progress) => callback(gameView(game, withCurrentReviews(progress,currentReviews.get(reviewKey(uid,id))))),
+      (game, progress) => {
+        if (auth.currentUser?.uid === uid) callback(gameView(game, withCurrentReviews(progress,currentReviews.get(reviewKey(uid,id)))));
+      },
       onError, onUnavailable);
   },
   watchPendingResults(uid: string, onError: (error: unknown) => void) {
     let stopped = false, syncing = false, expired = false, retry: ReturnType<typeof setTimeout> | undefined;
-    const sync = async () => { if (stopped || syncing || !expired) return; syncing = true; clearTimeout(retry); try { await command('sync'); } catch (e) { if (!stopped) { onError(e); retry = setTimeout(sync,60000); } } finally { syncing = false; } };
+    const sync = async () => { if (stopped || syncing || !expired) return; syncing = true; clearTimeout(retry); try { await command('sync', undefined, {}, uid); } catch (e) { if (!stopped) { onError(e); retry = setTimeout(sync,60000); } } finally { syncing = false; } };
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const stop = onSnapshot(query(collection(db, 'games'), where('players', 'array-contains', uid), where('status', '==', 'active')), snapshot => {
       for (const timer of timers.values()) clearTimeout(timer); timers.clear();

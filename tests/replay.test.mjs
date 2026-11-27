@@ -117,7 +117,7 @@ class MemoryCapture {
 test('Durable queue survives response loss and restart, retries immutable chunks, and serializes tabs',async()=>{
  const s=await setup(),id=await s.create('test'),storage=new MemoryCapture();let mono=100,serial=0,lost=true,inflight=0,maxInFlight=0,uploads=[];
  const clock={mono:()=>mono,wall:s.time,uuid:()=>`uuid_${++serial}`};
- const request=async body=>{inflight++;maxInFlight=Math.max(maxInFlight,inflight);try{const result=await s.call('alice',body);if(body.op==='upload'){uploads.push(JSON.stringify(body));if(lost){lost=false;throw Error('response lost AFTER commit');}}return result;}finally{inflight--;}};
+ const request=async (body,expectedUid)=>{assert.equal(expectedUid,'alice');inflight++;maxInFlight=Math.max(maxInFlight,inflight);try{const result=await s.call('alice',body);if(body.op==='upload'){uploads.push(JSON.stringify(body));if(lost){lost=false;throw Error('response lost AFTER commit');}}return result;}finally{inflight--;}};
  const a=new CaptureQueue(storage,request,clock,'page1'),key=await a.create('alice',id);for(let i=0;i<34;i++){mono+=10;await a.event(key,'selection_changed',{questionIndex:0,selectedOption:i%4});}
  await assert.rejects(a.flush('alice'));assert.equal(storage.events.get(key).length,34);const persisted=clone(storage.segments.get(key).pending);
  const b=new CaptureQueue(storage,request,clock,'page2');await Promise.all([a.flush('alice'),b.flush('alice')]);assert.equal(maxInFlight,1);assert.equal(uploads[0],uploads[1]);assert.equal(JSON.stringify(persisted),uploads[1]);assert.equal(storage.events.get(key).length,2);

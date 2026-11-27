@@ -1,5 +1,14 @@
 import type {ClientEvent,ClientEventType} from './contracts.ts';
 type Observer=(type:ClientEventType,data?:Partial<ClientEvent>)=>void;
-const observers=new Map<string,Observer>();
-export function registerCapture(round:string,observer:Observer){observers.set(round,observer);return()=>{if(observers.get(round)===observer)observers.delete(round);};}
-export function observeReplay(round:string,type:ClientEventType,data:Partial<ClientEvent>={}){observers.get(round)?.(type,data);}
+const observers = new Map<string, {uid: string; emit: Observer}>();
+
+export function registerCapture(round: string, uid: string, emit: Observer) {
+  const capture = {uid, emit};
+  observers.set(round, capture);
+  return () => { if (observers.get(round) === capture) observers.delete(round); };
+}
+
+export function observeReplay(round: string, type: ClientEventType, data: Partial<ClientEvent> = {}, expectedUid?: string) {
+  const capture = observers.get(round);
+  if (capture && (expectedUid === undefined || capture.uid === expectedUid)) capture.emit(type, data);
+}

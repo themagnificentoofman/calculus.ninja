@@ -17,8 +17,8 @@ export const indexedCaptureStorage:CaptureStorage={
 };
 export class CaptureQueue {
  readonly pageId:string;readonly owner:string;private running=false;
- readonly storage:CaptureStorage;readonly request:(input:any)=>Promise<any>;readonly clock:{mono:()=>number;wall:()=>number;uuid:()=>string};
- constructor(storage:CaptureStorage,request:(input:any)=>Promise<any>,clock:{mono:()=>number;wall:()=>number;uuid:()=>string},pageId?:string){this.storage=storage;this.request=request;this.clock=clock;this.pageId=pageId||clock.uuid();this.owner=clock.uuid();}
+ readonly storage:CaptureStorage;readonly request:(input:any,expectedUid:string)=>Promise<any>;readonly clock:{mono:()=>number;wall:()=>number;uuid:()=>string};
+ constructor(storage:CaptureStorage,request:(input:any,expectedUid:string)=>Promise<any>,clock:{mono:()=>number;wall:()=>number;uuid:()=>string},pageId?:string){this.storage=storage;this.request=request;this.clock=clock;this.pageId=pageId||clock.uuid();this.owner=clock.uuid();}
  async create(uid:string,roundId:string){const segmentId=this.clock.uuid(),key=`${uid}:${roundId}:${segmentId}`;await this.storage.create({key,uid,roundId,segmentId,pageId:this.pageId,nextSequence:1,nextChunk:0,ackSequence:0,closed:false,anchorMs:null,uncertaintyMs:0,serverAnchorAt:null,clockUncertain:false});return key;}
  event(key:string,type:ClientEventType,data:Partial<ClientEvent>={},view?:any){return this.storage.append(key,{schemaVersion:1,eventId:this.clock.uuid(),monotonicMs:this.clock.mono(),type,...data},view);}
  async flush(uid:string){
@@ -29,14 +29,14 @@ export class CaptureQueue {
    try{
     if(s.anchorMs===null){
      s.openSentMs??=this.clock.mono();s.clockUncertain=s.pageId!==this.pageId;await this.storage.update(s);
-     const anchor=await this.request({op:'open',roundId:s.roundId,segmentId:s.segmentId,clockUncertain:s.clockUncertain});if(anchor.limited)throw Error('Recording limit reached; replay is partial.');
+     const anchor=await this.request({op:'open',roundId:s.roundId,segmentId:s.segmentId,clockUncertain:s.clockUncertain},s.uid);if(anchor.limited)throw Error('Recording limit reached; replay is partial.');
      const end=this.clock.mono();s.anchorMs=s.clockUncertain?0:(s.openSentMs+end)/2;s.uncertaintyMs=s.clockUncertain?0:Math.max(0,(end-s.openSentMs)/2);s.serverAnchorAt=anchor.serverNow;await this.storage.update(s);
     }
     // At most one immutable chunk per segment per sweep. A persisted pending
     // envelope is replayed byte-for-byte after a lost response or process reload.
     let payload=s.pending;
     if(!payload){const events=await this.storage.chunk(s.key,s.ackSequence);if(!events.length)continue;payload={op:'upload',roundId:s.roundId,segmentId:s.segmentId,chunkIndex:s.nextChunk,events,closed:events.at(-1)!.type==='session_closed',anchorMs:s.anchorMs,uncertaintyMs:s.uncertaintyMs};s.pending=payload;await this.storage.update(s);}
-    const ack=await this.request(payload);if(!ack.acknowledged||ack.limited)throw Error('Recording could not synchronize; captured events remain local.');
+    const ack=await this.request(payload,s.uid);if(!ack.acknowledged||ack.limited)throw Error('Recording could not synchronize; captured events remain local.');
     await this.storage.ack(s.key,this.owner,ack.nextChunk,ack.nextSequence);
    }finally{await this.storage.release(s.key,this.owner);}
   }}finally{this.running=false;}
