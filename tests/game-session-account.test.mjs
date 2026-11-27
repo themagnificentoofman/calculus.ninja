@@ -45,8 +45,11 @@ test('a late answer callback cannot enter the replacement player’s replay', ()
   const first = registerCapture('round-id', 'first-player', () => assert.fail('Superseded observer'));
   const second = registerCapture('round-id', 'second-player', kind => events.push(kind));
   first();
+  observeReplay('round-id', 'automatic_advance', {questionIndex: 2}, 'first-player');
+  observeReplay('round-id', 'selection_changed', {questionIndex: 2}, undefined);
+  observeReplay('round-id', 'next', {questionIndex: 2}, 'second-player');
   observeReplay('round-id', 'answer_response', {}, 'first-player');
   observeReplay('round-id', 'answer_response', {}, 'second-player');
   second();
-  assert.deepEqual(events, ['answer_response']);
+  assert.deepEqual(events, ['next', 'answer_response']);
 });

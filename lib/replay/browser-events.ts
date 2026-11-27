@@ -8,7 +8,7 @@ export function registerCapture(round: string, uid: string, emit: Observer) {
   return () => { if (observers.get(round) === capture) observers.delete(round); };
 }
 
-export function observeReplay(round: string, type: ClientEventType, data: Partial<ClientEvent> = {}, expectedUid?: string) {
+export function observeReplay(round: string, type: ClientEventType, data: Partial<ClientEvent>, expectedUid: string | undefined) {
   const capture = observers.get(round);
-  if (capture && (expectedUid === undefined || capture.uid === expectedUid)) capture.emit(type, data);
+  if (capture && capture.uid === expectedUid) capture.emit(type, data);
 }

@@ -146,7 +146,7 @@ function RapidPractice() {
   }, [gameId, finished, finishGame,roundGame?.status]);
 
   const handleOptionSelect = (index: number) => {
-    if (!saving && !finished && countdown === null) {if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});setSelectedOption(index);}
+    if (!saving && !finished && countdown === null) {if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);setSelectedOption(index);}
   };
 
   const checkAnswer = async () => {
@@ -160,7 +160,7 @@ function RapidPractice() {
         setXpEarned(result.answer.xp); setTimeout(() => setXpEarned(null), 2000);
       }
       setRoundGame(result.game);deadlineRef.current = result.game.deadline || 0;
-      observeReplay(gameId,'automatic_advance',{questionIndex:currentIndex});
+      observeReplay(gameId,'automatic_advance',{questionIndex:currentIndex},user?.uid);
       setScore(result.game.scores[user.uid]); setSelectedOption(null);
       if (result.game.status === 'finished') { setFinished(true); finishedRef.current = true; }
       else setCurrentIndex(nextUnanswered(result.game, user.uid));

@@ -238,7 +238,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
   const handleOptionSelect = (index: number) => {
     if (saving || showExplanation || !gameData || !gameData.questions || !user || !gameId) return;
-    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
+    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);
     setSelectedOption(index);
   };
 
@@ -263,7 +263,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
 
   const nextQuestion = () => {
     if (saving || !showExplanation) return;
-    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});
+    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);
     setCurrentIndex(currentIndex + 1); setSelectedOption(null); setShowExplanation(false);
   };
 

@@ -104,7 +104,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
 
   const handleOptionSelect = (index: number) => {
     if (saving || showExplanation) return;
-    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index});
+    if(gameId)observeReplay(gameId,'selection_changed',{questionIndex:currentIndex,selectedOption:index},user?.uid);
     setSelectedOption(index);
   };
 
@@ -128,7 +128,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
 
   const nextQuestion = () => {
     if (saving || !showExplanation) return;
-    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});
+    if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1); setSelectedOption(null); setShowExplanation(false);
     } else { playSound('end'); setFinished(true); }
@@ -198,7 +198,7 @@ function TestPractice({study}:{study:ReturnType<typeof readStudyPractice>}) {
 
   if (questions.length > 0) {
     const q = questions[currentIndex];
-    if(q.responseFormat==='free-response')return <FreeResponseRound key={`${gameId}:${currentIndex}`} game={roundGame!} id={gameId!} uid={user.uid} index={currentIndex} onResult={(g,finalized)=>{setRoundGame(g);if(g.questionMix)setQuestionMix(g.questionMix);setCategory(g.category||'all');setDifficulty(g.difficulty||'medium');setQuestions(g.questions||[]);setScore(g.scores[user.uid]||0);setShowExplanation(finalized);}} onNext={()=>{if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex});setCurrentIndex(currentIndex+1);setSelectedOption(null);setShowExplanation(false);}} onFinish={()=>setFinished(true)}/>;
+    if(q.responseFormat==='free-response')return <FreeResponseRound key={`${gameId}:${currentIndex}`} game={roundGame!} id={gameId!} uid={user.uid} index={currentIndex} onResult={(g,finalized)=>{setRoundGame(g);if(g.questionMix)setQuestionMix(g.questionMix);setCategory(g.category||'all');setDifficulty(g.difficulty||'medium');setQuestions(g.questions||[]);setScore(g.scores[user.uid]||0);setShowExplanation(finalized);}} onNext={()=>{if(gameId)observeReplay(gameId,'next',{questionIndex:currentIndex},user?.uid);setCurrentIndex(currentIndex+1);setSelectedOption(null);setShowExplanation(false);}} onFinish={()=>setFinished(true)}/>;
     const isCorrect = selectedOption === q.correctIndex;
 
     return (
