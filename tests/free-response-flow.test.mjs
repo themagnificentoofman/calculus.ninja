@@ -158,7 +158,10 @@ test('configured API validates mix, persists requested order and requires joint 
  assert.equal((await call(mix,{}, {selectMixed:undefined})).status,409);assert.equal((await call(mix,{}, {freeResponseEnabled:false})).status,409);assert.equal(jointCalls,3);
  assert.equal((await call({multipleChoice:1,freeResponse:0,order:'uniform'})).status,200);assert.equal(mcCalls,1);
  assert.equal((await call({multipleChoice:0,freeResponse:1,order:'frq-first'})).status,200);assert.equal(frCalls,1);
- const duplicate={...mcQuestion(),lineageId:question().lineageId};assert.equal((await call(mix,{}, {selectMixed:async()=>({questions:[question(),duplicate],relaxation:'none'})})).status,409);
+ const duplicate={...mcQuestion(),lineageId:question().lineageId};
+ const rejected=await call(mix,{}, {selectMixed:async()=>({questions:[question(),duplicate],relaxation:'none'})});
+ assert.equal(rejected.status,409);
+ assert.deepEqual(await rejected.json(),{code:'INSUFFICIENT_CONTENT',error:'There are too few different problems for this question mix. Try another mix.'});
 });
 
 test('joint catalog changes and insufficient capacity have distinct public errors without persistence',async()=>{

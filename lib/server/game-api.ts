@@ -50,7 +50,7 @@ export function createGameApi(deps: { store: Store; verify: (token: string) => P
         const free=mix?mix.freeResponse>0:body.responseFormat==='free-response',mixed=!!mix&&mix.freeResponse>0&&mix.multipleChoice>0;
         if(['test','rapid'].includes(body.mode)&&await deps.store.get('roundCreation/control')!==null)throw new GameError('Please refresh and start this round from the practice screen.',409);
         if(free&&body.mode!=='test')throw new GameError('Free response is available only in individual Test practice.');
-        if(free&&(!deps.freeResponseEnabled||(mixed?!deps.selectMixed:!deps.selectFreeResponse)))throw new BankUnavailableError('This free-response question mix is currently unavailable. Multiple-choice practice remains available.');
+        if(free&&(!deps.freeResponseEnabled||(mixed?!deps.selectMixed:!deps.selectFreeResponse)))throw new BankUnavailableError('This free-response question mix is unavailable. Try a multiple-choice round.');
         const guarded=deps.compactCompetitiveBank&&['pvp','multiplayer'].includes(body.mode);
         if(guarded && body.operationId===undefined && body.roomOptions===undefined) throw new GameError('Refresh the lobby page before creating a new room.',409);
         if(body.operation!==undefined&&(!guarded||body.operation!=='cancel'))throw new GameError('Unsupported round operation.');
@@ -74,12 +74,12 @@ export function createGameApi(deps: { store: Store; verify: (token: string) => P
         const competitiveResult = identity && deps.selectCompetitive ? await deps.selectCompetitive(selectionInput) : null;
         const result=competitiveResult ?? (mixed?await deps.selectMixed!(selectionRequest as Parameters<NonNullable<typeof deps.selectMixed>>[0],recent):await (free?deps.selectFreeResponse!:deps.select)(selectionRequest,recent));
         const selected=free?boundedJsonSnapshot(result,{maxBytes:2000000,maxNodes:180000,maxDepth:40}):result;
-        if (!validQuestionResponse(selected.questions, {...input,...(mix?{questionMix:mix}:{responseFormat:free?'free-response':'multiple-choice'})})) throw new GameError('The problem bank returned an invalid set. Please retry.', 502);
+        if (!validQuestionResponse(selected.questions, {...input,...(mix?{questionMix:mix}:{responseFormat:free?'free-response':'multiple-choice'})})) throw new GameError('Your round could not be prepared. Please retry.', 502);
         const questions=mix?orderConfiguredQuestionsV2(selected.questions,mix):selected.questions;
         if(mixed){
           const lineages=new Set(questions.map(q=>q.lineageId||q.problemId)),families=new Map<string,number>();
-          for(const q of questions){if(!q.problemId||!q.familyId)throw new GameError('The selected question identity is incomplete.',502);const family=q.constructionFamilyId||q.familyId;families.set(family,(families.get(family)||0)+1);}
-          if(lineages.size!==questions.length||Math.max(...families.values())>2||selected.relaxation!=='none')throw new BankUnavailableError('This question mix does not have enough distinct approved problems. Choose another mix.');
+          for(const q of questions){if(!q.problemId||!q.familyId)throw new GameError('One of the selected problems could not be loaded. Please retry.',502);const family=q.constructionFamilyId||q.familyId;families.set(family,(families.get(family)||0)+1);}
+          if(lineages.size!==questions.length||Math.max(...families.values())>2||selected.relaxation!=='none')throw new JointSelectionError('joint-insufficient-capacity');
         }
         return response(await games.storeQuestions(uid,body.mode,input.category,input.difficulty,questions,selected.relaxation,selected.diagnostics,mix,selectedFromHistory,deps.compactCompetitiveBank,identity,competitiveResult?.catalogWindow));
         } catch(error) {
@@ -116,7 +116,7 @@ export function createGameApi(deps: { store: Store; verify: (token: string) => P
       if (error instanceof BankUnavailableError) return response({ error: error.message, code: 'INSUFFICIENT_CONTENT' }, 409);
       if (error instanceof StoreError && error.status === 429) return response({ error: 'Online storage is at its usage limit. Please try again later.', code: 'STORAGE_QUOTA_EXCEEDED' }, 503);
       // Never send credentials, upstream bodies, private question data or stack traces.
-      return response({ error: 'The server could not save this operation. Please retry.' }, 503);
+      return response({ error: 'The server could not confirm the result of this request. Please retry.' }, 503);
     }
   };
 }

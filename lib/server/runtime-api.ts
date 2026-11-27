@@ -9,7 +9,7 @@ import {selectCompetitiveQuestions} from './competitive-catalog';
 import {createRoundApi} from './round-api';
 import {createRoundCreation} from './round-creation.mjs';
 export function gameApi(resource: 'games' | 'profile' | 'questions' | 'social', request: Request) {
-  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.DB) return Response.json({ error: 'Secure gameplay has not been configured. Please contact the site owner.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON || !env.DB) return Response.json({ error: 'Online play is temporarily unavailable. Please try again later.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   const store = firestoreStore(config.projectId, config.firestoreDatabaseId, () => serviceAccountToken(env.FIREBASE_SERVICE_ACCOUNT_JSON!, config.projectId));
   return createGameApi({ store, compactCompetitiveBank:true, verify: token => verifyFirebaseIdentity(token, config.projectId),
     select: (input, recent) => selectBankQuestions(env.DB!, input, recent),

@@ -86,6 +86,44 @@ export function beforeSecurityPresentation(review, sources, readEvidence){
  assert(sha(canonical(prior))===review.predecessor,'Security presentation predecessor differs');
  return prior;
 }
+// A compatibility message change advances the guarded selector control. Preserve the
+// prior Study review only when the runtime policy and every drill outcome still agree.
+export function beforeSelectionCopyPresentation(review, sources, readEvidence, precedingSelectorProof) {
+ const policyPath='lib/server/round-creation-policy.json', drillPath='lib/server/study-practice-activation.json';
+ const copySources=['bank-selection.ts','compact-bank-selection.ts','free-response-selection.mjs','game-api.ts','joint-selection-error.mjs','runtime-api.ts'].map(name=>'lib/server/'+name);
+ const storedHash=value=>sha(JSON.stringify(value,null,2)+'\n');
+ assert(review?.version==='study-selection-copy-presentation-1' && isHash(review.predecessor) &&
+  sha(canonical(sources))===review.successor && isHash(precedingSelectorProof) &&
+  precedingSelectorProof===review.before?.selectorProof,'Unreviewed question-selection presentation');
+ const prior={...sources};
+ const sides=['before','after'].map(side=>{
+  const receipt=review[side];
+  assert(receipt && isHash(receipt.selectorProof),'Missing question-selection evidence');
+  const {policy,activation}=receipt, proof=readEvidence(receipt.selectorProof);
+  const {digest,...body}=policy;
+  assert(digest===sha(canonical(body)) && digest===activation.control.policy && digest===proof.policy &&
+   proof.reviewOnly===false && isHash(proof.db) && isHash(proof.registry) && isHash(proof.operator),
+   'Question-selection proof uses other inputs');
+  assert(activation.version===1 && Object.keys(activation.formats).length>0 && Array.isArray(proof.scopes) &&
+   proof.scopes.length===2*Object.keys(activation.formats).length,'Incomplete question-selection drill review');
+  if(side==='before'){prior[policyPath]=storedHash(policy);prior[drillPath]=storedHash(activation);}
+  else assert(sources[policyPath]===storedHash(policy) && sources[drillPath]===storedHash(activation),'Unbound question-selection source');
+  return {receipt,body,proof};
+ });
+ const [before,after]=sides;
+ const {sourceHashes:left,...oldPolicy}=before.body,{sourceHashes:right,...newPolicy}=after.body;
+ const changed=Object.keys(left).filter(p=>left[p]!==right[p]).sort();
+ assert(canonical(oldPolicy)===canonical(newPolicy) && canonical(Object.keys(left).sort())===canonical(Object.keys(right).sort()) &&
+  canonical(changed)===canonical(copySources) && changed.every(p=>isHash(left[p])&&isHash(right[p])),
+  'Question-selection change exceeds the reviewed sources');
+ const a=before.receipt.activation,b=after.receipt.activation;
+ assert(canonical(a.formats)===canonical(b.formats) && a.control.incarnation===b.control.incarnation &&
+  b.control.epoch===a.control.epoch+3 && b.control.version===a.control.version+3 &&
+  before.proof.registry===after.proof.registry && before.proof.operator===after.proof.operator &&
+  canonical(before.proof.scopes)===canonical(after.proof.scopes),'Study drill availability or results changed');
+ assert(sha(canonical(prior))===review.predecessor,'Question-selection presentation predecessor differs');
+ return prior;
+}
 function studyDashboardPresentation(amendment, sources=studyPresentationSources()){
  assert(amendment?.version==='study-dashboard-presentation-1','Invalid dashboard presentation review');
  const scope=['components/study/StudyLibrary.tsx','components/study/StudyLessonReader.tsx','components/study/StudyMark.tsx','lib/study/marks.mjs'];
@@ -194,6 +232,12 @@ export function studyEvidenceEnvironment(){
  const directory=process.env.CALCULUS_STUDY_EVIDENCE_DIR,inventory=process.env.CALCULUS_STUDY_BANK_INVENTORY;
  const scoped=registry.presentationHash!==currentStudyPresentationHash()&&Object.keys(registry.documents??{}).length>0;
  let sources=studyPresentationSources();
+ if(scoped && registry.selectionCopyPresentationReview){
+  assert(directory && isHash(registry.securityPresentationReview) && isHash(registry.selectionCopyPresentationReview),'Private question-selection presentation evidence required');
+  const readEvidence=evidenceDirectory(directory);
+  const preceding=readEvidence(registry.securityPresentationReview);
+  sources=beforeSelectionCopyPresentation(readEvidence(registry.selectionCopyPresentationReview),sources,readEvidence,preceding?.support?.selectorProof);
+ }
  if(scoped && registry.securityPresentationReview){
   assert(directory && isHash(registry.securityPresentationReview),'Private security presentation evidence required');
   const readEvidence=evidenceDirectory(directory);
