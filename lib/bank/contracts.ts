@@ -20,7 +20,7 @@ export type VersionedProblemReference =
  | (ProblemReference & {responseFormat:'free-response';choiceOrder?:never;answerContractId:string;answerContractHash:string;graderVersion:string;parserVersion:string});
 export interface RoundSnapshot {
   schemaVersion: 1 | 2 | 3;
-  selectionPolicy: 'family-uniform-v1' | 'exposure-weighted-v2' | 'free-response-capped-v1' | 'joint-capped-v1' | 'joint-capped-v2' | 'unrecorded-v1';
+  selectionPolicy: 'family-uniform-v1' | 'exposure-weighted-v2' | 'free-response-capped-v1' | 'joint-capped-v1' | 'joint-capped-v2' | 'joint-capped-v3' | 'unrecorded-v1';
   relaxation: 'none' | 'recent-families' | 'recent-problems' | 'family-cap';
   diagnostics?: RoundSelectionDiagnostics;
   questions: (ProblemReference & { ordinal: number })[];
@@ -81,7 +81,7 @@ export interface FreeResponseSelectionDiagnostics {
   catalogFamilies:number; reservedRounds:number;
 }
 export interface JointSelectionDiagnostics {
-  policy:'joint-capped-v1' | 'joint-capped-v2';
+  policy:'joint-capped-v1' | 'joint-capped-v2' | 'joint-capped-v3';
   candidateCount:number; catalogFamilies:number; statements:number; payloadsDecoded:number;
   requiredRounds:number; remainingRounds:number;
   initialCatalogBinding:string; finalCatalogBinding:string; remainingRank:number[];

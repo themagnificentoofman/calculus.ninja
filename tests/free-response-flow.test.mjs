@@ -240,7 +240,7 @@ test('direct FR issuance detaches inputs before asynchronous work and recovers a
  assert.equal(calls,1);assert.equal([...store.docs.keys()].filter(k=>k.startsWith('questionSets/')).length,1);assert.equal((await store.get('bankRecent/alice')).exposures.length,1);
 });
 test('new snapshots retain the actual FR or joint policy without relabeling historical MC defaults',async()=>{
- for(const policy of [undefined,'free-response-capped-v1','joint-capped-v1','joint-capped-v2']){
+ for(const policy of [undefined,'free-response-capped-v1','joint-capped-v1','joint-capped-v2','joint-capped-v3']){
   const store=new MemoryStore(),games=createServerGames(store,()=>1000000);await games.profile('alice',{});
   const diagnostics=policy?{policy,candidateCount:1,statements:3,payloadsDecoded:1,catalogFamilies:1,reservedRounds:1}:undefined;
   const set=await games.storeQuestions('alice','test','integration','easy',[question()],'none',diagnostics,undefined,await selectionHistoryToken({}));

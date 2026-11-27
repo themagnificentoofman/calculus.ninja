@@ -24,7 +24,7 @@ function adapter(db,before=()=>{}){return{prepare:sql=>({bind:(...args)=>({all:a
 test('joint loader decodes exact MC and FR snapshots, shares lineage and returns one unordered set',async()=>{
  const f=await fixture();try{const calls=[];const result=await selectMixedQuestions(adapter(f.db,(sql,args)=>calls.push({sql,args})),input,{},options(f));
  assert(validQuestionResponse(result.questions,input));assert.equal(new Set(result.questions.map(q=>q.lineageId)).size,2);assert.equal(result.questions.filter(q=>q.responseFormat==='free-response').length,1);
- assert.equal(calls.length,4);assert.equal(calls.filter(q=>q.sql===MIXED_CATALOG_SQL).length,2);assert.equal(result.diagnostics.payloadsDecoded,2);assert.equal(result.diagnostics.policy,'joint-capped-v2');
+ assert.equal(calls.length,4);assert.equal(calls.filter(q=>q.sql===MIXED_CATALOG_SQL).length,2);assert.equal(result.diagnostics.payloadsDecoded,2);assert.equal(result.diagnostics.policy,'joint-capped-v3');
  assert(Object.isFrozen(result.questions[0]));assert(result.questions.find(q=>q.responseFormat==='free-response').freeResponse);assert(result.questions.find(q=>q.responseFormat!=='free-response').choiceOrder);
  }finally{f.db.close();}
 });

@@ -42,7 +42,7 @@ export async function expectedCreationPolicy(){
  const sourceHashes=Object.fromEntries(files.map(p=>[p,sha(readFileSync(resolve(root,p)))]));
  const registry=JSON.parse(readFileSync(resolve(root,'lib/server/free-response-admissions.json'),'utf8'));
  assertNoHeldAssessmentRevisions(registry);
- const body={version:'round-creation-policy-v1',policy:{selection:'joint-capped-v2',authorizationCatalog:'mixed-catalog-cell-v3-or-complete-fallback',authorization:1,intent:'round-intent-1',maxRoundSize:20,familyCap:2,rounds:{easy:5,medium:5,hard:5,olympiad:10},qualificationRoundSize:20,recovery:'original-binding-before-current-gates',legacy:'exact-admission-and-account-opt-in',activationModes:['test','rapid'],competitiveCatalog:'closed-writer-window-v1'},registryHash:sha(canonical(registry)),sourceHashes};
+ const body={version:'round-creation-policy-v1',policy:{selection:'joint-capped-v3',authorizationCatalog:'mixed-catalog-cell-v3-or-complete-fallback',authorization:1,intent:'round-intent-1',maxRoundSize:20,familyCap:2,rounds:{easy:5,medium:5,hard:5,olympiad:10},qualificationRoundSize:20,recovery:'original-binding-before-current-gates',legacy:'exact-admission-and-account-opt-in',activationModes:['test','rapid'],competitiveCatalog:'closed-writer-window-v1'},registryHash:sha(canonical(registry)),sourceHashes};
  return {...body,digest:sha(canonical(body))};
 }
 export async function verifyCreationPolicy(){

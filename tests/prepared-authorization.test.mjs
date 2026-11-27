@@ -8,22 +8,23 @@ import {sourceFixture} from './fixtures/source-bank.mjs';
 import {freeResponseFixture} from './fixtures/free-response.mjs';
 import {frDigest} from '../lib/bank/free-response-record.mjs';
 import {createRoundIntents,roundIdentity,ROUND_CREATION_CONTROL} from '../lib/server/round-intents.ts';
+import {recordExposures} from '../lib/bank/exposure.ts';
 import {selectionHistoryToken} from '../lib/server/selection-history-token.mjs';
 import {selectMixedQuestions,JOINT_MC_PAYLOAD_SQL,JOINT_FR_PAYLOAD_SQL} from '../lib/server/mixed-question-selection.mjs';
 import {validatePreparedAuthorization} from '../lib/server/prepared-authorization.mjs';
 import {authorizeRound} from '../lib/server/round-authorizations.mjs';
 const policyHash='c'.repeat(64),incarnation='d'.repeat(64);
-async function setup({rounds=1,frOnly=false,mcOnly=false,history={}}={}){
+async function setup({rounds=1,frOnly=false,mcOnly=false,history={},frCount=2,families,rng=()=>.4}={}){
  const sql=openCompact(':memory:');initializeFreeResponseIndex(sql);const origin=await sourceFixture(sql,{completePresentation:true}),fixtures=[],refs=[];
- for(let i=0;i<7;i++){
-  const f=await freeResponseFixture({alterTask:t=>{t.difficulty='medium';if(i===0)t.origin=origin;else{t.problemId='cn_'+i.toString(16).padStart(20,'0');t.lineageId='independent-lineage-'+i;t.familyId=t.constructionFamilyId=t.pedagogy.constructionId='family-'+i;}}});
+ for(let i=0;i<(families?.length??7);i++){
+  const f=await freeResponseFixture({alterTask:t=>{t.difficulty='medium';if(i===0)t.origin=origin;else{t.problemId='cn_'+i.toString(16).padStart(20,'0');t.lineageId='independent-lineage-'+i;t.familyId=t.constructionFamilyId=t.pedagogy.constructionId=families?.[i]??'family-'+i;}}});
   const stored=await storeAdmittedFreeResponse(sql,f.record,f);await indexAdmittedFreeResponse(sql,stored.recordRef,f);fixtures.push(f);refs.push(stored.recordRef);
  }
  const admissions={...fixtures[0].admissions,records:Object.assign({},...fixtures.map(f=>f.admissions.records))},calls=[];let before=()=>{};
  const prepare=text=>{let params=[];const q={bind:(...p)=>{params=p;return q;},all:async()=>{calls.push(text);before(text,params);return{results:sql.prepare(text).all(...params)};},first:async()=>{calls.push(text);before(text,params);return sql.prepare(text).get(...params)??null;}};return q;};
  const db={prepare,withSession:()=>db,batch:async statements=>{sql.exec('BEGIN IMMEDIATE');try{const result=[];for(const s of statements)result.push(await s.all());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}}};
- const questionMix={multipleChoice:frOnly?0:1,freeResponse:mcOnly?0:frOnly?2:1,order:'uniform'},request={mode:'test',category:'differentiation',difficulty:'medium',count:questionMix.multipleChoice+questionMix.freeResponse,questionMix};
- const selection=await selectMixedQuestions(db,request,{}, {rounds,admissions,now:Date.now(),rng:()=>.4,index:n=>n-1});
+ const questionMix={multipleChoice:frOnly?0:1,freeResponse:mcOnly?0:frOnly?frCount:1,order:'uniform'},request={mode:'test',category:'differentiation',difficulty:'medium',count:questionMix.multipleChoice+questionMix.freeResponse,questionMix};
+ const selection=await selectMixedQuestions(db,request,{}, {rounds,admissions,now:Date.now(),rng,index:n=>n-1});
  const docs=new Map([[ROUND_CREATION_CONTROL,{enabled:true,version:3}],['bankRecent/alice',history],['users/alice',{uid:'alice',rating:0,topicRatings:{}}]]),store={get:async p=>docs.has(p)?structuredClone(docs.get(p)):null,transaction:async fn=>{
   const writes=[];const result=await fn({get:async p=>{assert.equal(writes.length,0);return store.get(p);},set:(p,v)=>writes.push([p,structuredClone(v)]),delete:p=>writes.push([p,null])});for(const[p,v]of writes){if(v===null)docs.delete(p);else docs.set(p,v);}return result;
  }};
@@ -132,3 +133,37 @@ test('a real local D1 proof activates exact mixed content and replay atomically 
   assert.deepEqual(await f.service.recoverActive(f.identity),result);
  }finally{f.close();}
 });
+
+for(const change of ['withdrawal','recent issuance']){
+ test('authorization rechecks the rolling reserve after an unselected '+change,async()=>{
+  const families=['fixture-derivative',...Array(6).fill('common-family'),'a','b','c','d','e'];
+  const f=await setup({rounds:2,frOnly:true,frCount:3,families,rng:()=>.8});
+  try{
+   // The original prepared selection passed authorization against the initial pool.
+   assert.equal((await validate(f)).epoch,7);
+   const chosen=new Set(f.selection.questions.map(q=>q.problemId));
+   const rows=f.sql.prepare('SELECT record_ref,problem_id,lineage_id,construction_id FROM frbank_records ORDER BY record_ref').all();
+   const common=rows.filter(r=>r.construction_id==='common-family');
+   const outside=rows.filter(r=>r.construction_id!=='common-family');
+   const selectedOutside=outside.filter(r=>chosen.has(r.problem_id));
+   const unselected=outside.filter(r=>!chosen.has(r.problem_id));
+   assert.equal(common.length,6);
+   assert(selectedOutside.length>=2&&unselected.length>=2);
+   // Three rounds still fit using two common rows and one outside row per round.
+   // Consuming the prepared set would leave just one outside row for two rounds.
+   const lost=unselected.slice(1);
+   if(change==='withdrawal'){
+    withdraw(f,lost.map(r=>r.record_ref));
+   }else{
+    const reserved=f.docs.get('bankRecent/alice');
+    const questions=lost.map(r=>({problemId:r.problem_id,lineageId:r.lineage_id,familyId:r.construction_id}));
+    f.docs.set('bankRecent/alice',recordExposures(reserved,'other_issued_round',questions,'issued',Date.now()));
+    f.context=await f.service.readForAuthorization(f.identity);
+   }
+   f.calls.length=0;
+   await assert.rejects(validate(f),/Current catalog cannot complete the prepared horizon/);
+   assert.equal(f.calls.length,1);
+   assert.equal(f.sql.prepare('SELECT count(*) n FROM round_authorizations').get().n,0);
+  }finally{f.close();}
+ });
+}

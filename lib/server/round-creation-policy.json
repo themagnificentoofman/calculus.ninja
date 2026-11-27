@@ -1,7 +1,7 @@
 {
   "version": "round-creation-policy-v1",
   "policy": {
-    "selection": "joint-capped-v2",
+    "selection": "joint-capped-v3",
     "authorizationCatalog": "mixed-catalog-cell-v3-or-complete-fallback",
     "authorization": 1,
     "intent": "round-intent-1",
@@ -96,13 +96,14 @@
     "lib/server/initial-authorized-game.ts": "f2b27e447d06552b510959d5f2d90b822c716900edce5ac9787f43515b07d706",
     "lib/server/joint-selection-error.mjs": "b589d03a9629dd83b865a6f8e0259128f38604dca84900298d29ebbe61b80a31",
     "lib/server/joint-selection-v2.mjs": "57fb16297429468bcc8ca02cf3def068fe56b13819c17237322581d9bd10fc34",
-    "lib/server/joint-selection.mjs": "cde494ceb89a15b5d3fd6c3b0b3113923c2d1de7f54b14b6c350a7473172c0af",
+    "lib/server/joint-selection-v3.mjs": "9655db3f48d98df415390d4a8905d4e5696d925898c0d429b10bba06d6b7a402",
+    "lib/server/joint-selection.mjs": "629c8112670abd61adf4864f724adcea6ddc0ed4ff4c0ecda3556f8edb110877",
     "lib/server/legacy-eligibility.json": "e28489815f5c25a147c608960891cc6de6b1c96ca253fd1ad87f9cbc2266639a",
     "lib/server/legacy-selection.mjs": "623db4fb42ae40c08d4d75ab7d9797f6ee6ec94b013583e9b1c1985f2478948f",
     "lib/server/mixed-catalog-scope.mjs": "e9577a3d54db340afad67b5f7c433773cd3c1bcb55f3d1fe606f532cfbfb9cfc",
     "lib/server/mixed-question-catalog.mjs": "879ca1aa914aea71e171391ef7fb4bac65b98c7944ddf86d66ac0e4d85b32fcd",
-    "lib/server/mixed-question-selection.mjs": "8738977457037a0a6658b59d2849010b694319b1e53ab5e137f3912fd49ad984",
-    "lib/server/prepared-authorization.mjs": "26bf01c35cb2c107c015c1e7c430fac65fe7fe908fd00dd32a8e62bfb2669cd2",
+    "lib/server/mixed-question-selection.mjs": "a95788043d6ceae434e14a8dcb924920876b18487b0d843e778399a57f790c5f",
+    "lib/server/prepared-authorization.mjs": "0e144d2d3adbd9d73ed6532048e924c76c22a7790d102bf8d4328e39d048992b",
     "lib/server/public-profile-projection.ts": "2ab2b1f529c58ca9bef02d27f6d761f12d9705bbb478027071faa91a522df769",
     "lib/server/qa-public-profile.ts": "5e336708a72fbfa2cfb8cbf511022ed976a8c1db0782a3e38fc8a792793dd274",
     "lib/server/questions-policy.mjs": "bfb75d4b7b0d1498a8213627a6e73cd73c024d641e4beb493a355e32412211b2",
@@ -137,9 +138,9 @@
     "scripts/bank/free-response-storage.mjs": "091a2ee6a6c932a33e1f3cb79cd6cd6b419eb327f21252245fc3cfa5784d79d3",
     "scripts/bank/free-response.mjs": "1cf6b3ef7ef493f32cf09727438a0ba53eacdcb67fe434ee63211131fe06922a",
     "scripts/milestone4/checker-policy.mjs": "c5a1e3c0ca26fc6327547b47f7f26dc9c0825d1b0e8f87b688e74aa2103d851d",
-    "scripts/milestone4/creation-policy.mjs": "1301ec063bac545b342f9d8de4ace50dda594359c13380938828fa35ebc4406a",
+    "scripts/milestone4/creation-policy.mjs": "60ce9e703be9672ea9cf2611c22d44d115bcb8a3b0b4c2fb372c9b88c3c3ba45",
     "scripts/milestone4/round-control.mjs": "32bc466fb20f084731eed01147e3b0691caa04eccd9c35fd75ba13d85f8bb956",
     "scripts/run-framework.mjs": "43930b107bf8e58eff178f496e93389427544aa58536e7ff81caa887cfb22a06"
   },
-  "digest": "d54b259895de6180a49db7dd3517dea060ab7465e2bd5bd51093b172885feff3"
+  "digest": "a8d56abcc1b3bdf4fe4373ef894761cc623bcbcc1ace3fdd9f0e9f4fd7e01121"
 }
