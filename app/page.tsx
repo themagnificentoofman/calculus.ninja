@@ -31,20 +31,20 @@ export default function Home() {
             className="text-center max-w-4xl mx-auto mt-16 sm:mt-24"
           >
             <h1 className="text-5xl sm:text-7xl font-bold tracking-tighter mb-8 leading-tight">
-              Master Calculus.<br />
+              Practice calculus<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                Destroy the Competition.
+                solo or with friends
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              A competitive calculus trainer featuring real-time multiplayer, ratings, reviewed problems, and worked mathematical explanations.
+              Choose a topic for an untimed round, race the clock in Rapid, or challenge another player. Each problem comes with a worked solution.
             </p>
             <a
               href="/auth"
               className="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg transition-all hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] inline-block"
             >
               <span className="flex items-center gap-2">
-                Start Grinding <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Sign in to play <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </a>
           </div>

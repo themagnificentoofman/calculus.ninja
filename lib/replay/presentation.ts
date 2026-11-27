@@ -8,7 +8,14 @@ const statuses:Record<string,string>={waiting:'Waiting for players',starting:'St
 const lookup=(labels:Record<string,string>,key:unknown)=>typeof key==='string'&&Object.hasOwn(labels,key)?labels[key]:undefined;
 export const recordedEndLabel=(reason:unknown,status:unknown)=>lookup(endings,reason)||lookup(statuses,status)||'End reason unavailable';
 export const recordedStateLabel=(status:unknown)=>lookup(statuses,status)||'State unavailable';
-export const recordedResultLabel=(outcome:unknown,status:unknown)=>lookup({win:'Win',loss:'Loss',draw:'Draw',completed:'Completed'},outcome)||recordedStateLabel(status);
+const outcomes: Record<string,string> = {win:'Win', loss:'Loss', draw:'Draw', completed:'Completed', unplayed:'Unplayed'};
+const modes: Record<string,string> = {test:'Test', rapid:'Rapid', pvp:'PvP', multiplayer:'Multiplayer', ffa:'Multiplayer'};
+export const recordedModeLabel = (mode: unknown) => lookup(modes, mode) ?? 'Unknown mode';
+export const recordedTopicLabel = (topic: unknown) => lookup(topics, topic) ?? 'Unknown topic';
+export const recordedDifficultyLabel = (tier: unknown) => lookup(tiers, tier) ?? 'Unknown difficulty';
+export const recordedResultLabel = (outcome: unknown) =>
+  lookup(outcomes, outcome) ?? (outcome == null ? 'No recorded result' : 'Result unavailable');
+
 export const recordedSubmissionLabel=(status:unknown)=>lookup({idle:'Not submitted',pending:'Sending',accepted:'Saved',rejected:'Response not confirmed'},status)||'Status unavailable';
 const events:Record<ClientEventType|ServerEventType,string>={
  session_open:'Recording started',question_displayed:'Question shown',selection_changed:'Choice changed',submission_started:'Answer submission started',submission_rejected:'Submission not confirmed',answer_response:'Answer response received',feedback_displayed:'Feedback shown',next:'Next question requested',automatic_advance:'Advanced to next question',visibility_hidden:'Page hidden',visibility_visible:'Page visible',disconnect:'Connection lost',reconnect:'Connection restored',page_leave:'Page left',session_closed:'Recording ended',result_displayed:'Result shown',capture_gap:'Recording gap',

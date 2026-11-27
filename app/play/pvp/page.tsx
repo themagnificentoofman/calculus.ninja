@@ -229,7 +229,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
     setLoading(true); setGenerationError('');
     try {
       const id = idToJoin.trim();
-      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid game ID.');
+      if (!/^[a-zA-Z0-9]{5,30}$/.test(id)) throw new Error('Enter a valid lobby code.');
       await gameProgress.joinGame(id, user.uid, 'pvp',source);
       setGameId(id);
     } catch (error) { setGenerationError(error instanceof Error ? error.message : 'Could not join this game.'); }
@@ -458,7 +458,7 @@ function PvPMatch({ onPlayAgain }: { onPlayAgain: () => void }) {
           <h2 className="text-3xl font-bold mb-2">Waiting for Opponent...</h2>
           <p className="mt-2 mb-4 text-sm text-zinc-500">{gameData.visibility === 'public' ? 'Public Lobby · Listed in the live catalog' : 'Private Lobby · Join by code or invitation'}</p>
           {presenceError && <p role="status" className="mb-4 text-sm text-amber-300">{presenceError}</p>}
-          <p className="text-zinc-400 mb-6">Share this Game ID with your friend:</p>
+          <p className="text-zinc-400 mb-6">Share this lobby code with your opponent.</p>
 
           <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-6 font-mono text-base sm:text-xl break-all text-red-400 select-all">
             {gameId}

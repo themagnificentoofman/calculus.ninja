@@ -105,7 +105,10 @@ export function createReplayApi(deps:{store:Store;verify:(token:string)=>Promise
     }));
    }
    // Every content/chunk endpoint repeats the match-level gate, including an early finisher.
-   if(!terminal(game))return reply({replayStatus:'Recording',locked:true,message:'Replay and analysis unlock after the entire match ends.'},409);
+   if (!terminal(game)) {
+    const message = 'Replay and analysis unlock after the entire match ends.';
+    return reply({replayStatus:'Recording', locked:true, message, error:message}, 409);
+   }
    const manifest=await store.get(`replayManifests/${round}`),capture=await store.get(capturePath(round,uid));
    if(!manifest)return reply({replayStatus:'Unavailable',message:'The saved replay is unavailable.'});
    const status=replayStatus(game.replayVersion,true,capture,manifest.settledAt,now(),expected(game,uid));

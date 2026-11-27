@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServerGames,publicGame} from '../lib/server/game-engine.ts';
 import {createReplayApi} from '../lib/server/replay-api.ts';
+import {createApiRequest} from '../lib/api-request.mjs';
 import {initialState,compileReplay,reduceEvent,orderEvents,originalClock,problemEvidence,roundAnalysis} from '../lib/replay/engine.ts';
 import {PlaybackClock,loadReplay} from '../lib/replay/playback.ts';
 import {replayStatus,REPLAY_LIMITS,legacyMessage} from '../lib/replay/contracts.ts';
@@ -19,7 +20,17 @@ class MemoryStore {
 const fixture=()=>Array.from({length:3},(_,i)=>({latexProblem:`x_${i}+1`,options:['1','2','3','4'],correctIndex:0,explanation:['Exact saved solution'],topic:'integration',difficulty:'easy',problemId:`cn_problem_${i}`,problemRevision:7,contentHash:`hash${i}`,bankRelease:'verified-release',familyId:'family',choiceOrder:['a','b','c','d'],context:{assumptions:'real',subtopic:'power',techniqueTags:['power'],parameters:{i}}}));
 async function setup(){const store=new MemoryStore();let clock=1000000;const games=createServerGames(store,()=>clock),api=createReplayApi({store,now:()=>clock,verify:async token=>({sub:token})});for(const uid of ['alice','bobby','carol'])await games.profile(uid,{});
  const call=async(uid,body,status=200)=>{const response=await api(new Request('https://ninja.test/api/replay',{method:'POST',headers:{authorization:`Bearer ${uid}`,'content-type':'application/json'},body:JSON.stringify(body)}));const payload=await response.json();assert.equal(response.status,status,JSON.stringify(payload));return payload;};
- const create=async(mode,settings={winCondition:'first_to_n',targetScore:2,timeLimit:30,penalties:true})=>{const set=await games.storeQuestions('alice',mode,'integration','easy',fixture());await games.createGame('alice',set.questionSetId,mode,{timeLimit:30,settings});return set.questionSetId;};return {store,games,call,create,advance:n=>clock+=n,time:()=>clock};}
+ const create=async(mode,settings={winCondition:'first_to_n',targetScore:2,timeLimit:30,penalties:true})=>{const set=await games.storeQuestions('alice',mode,'integration','easy',fixture());await games.createGame('alice',set.questionSetId,mode,{timeLimit:30,settings});return set.questionSetId;};return {store,games,api,call,create,advance:n=>clock+=n,time:()=>clock};}
+test('opening replay during your match explains when it will be available', async () => {
+ const s = await setup();
+ const id = await s.create('pvp');
+ const request = createApiRequest({
+   currentUser: () => ({uid:'alice', getIdToken:async () => 'alice'}),
+   fetch: (path, options) => s.api(new Request(new URL(path, 'https://ninja.test'), options)),
+ });
+ await assert.rejects(loadReplay(id, body => request('replay', body)), error =>
+   error.status === 409 && error.message === 'Replay and analysis unlock after the entire match ends.');
+});
 for(const mode of ['test','rapid','pvp','multiplayer-target','multiplayer-time'])test(`${mode}: atomic authoritative replay, immutable content, match gate and read-only replay`,async()=>{
  const s=await setup(),multi=mode.startsWith('multiplayer'),gameMode=multi?'multiplayer':mode,id=await s.create(gameMode,{winCondition:mode==='multiplayer-time'?'time_limit':'first_to_n',targetScore:2,timeLimit:30,penalties:true});
  const content=await s.store.get(`replayContent/${id}`);assert.deepEqual(content.questions,fixture());

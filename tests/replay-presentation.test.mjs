@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {recordedEndLabel,recordedSettingRows} from '../lib/replay/presentation.ts';
+import {recordedEndLabel,recordedSettingRows,recordedModeLabel,recordedResultLabel,recordedTopicLabel,recordedDifficultyLabel} from '../lib/replay/presentation.ts';
 test('recorded settings show readable values without exposing or changing stored version metadata',()=>{
  const manifest={mode:'multiplayer',replayVersion:2,appVersion:'milestone-4-fr-1',rulesVersion:'progression-3-bank-1',bankReleases:['internal-release'],questionCount:5,settings:{category:'all',difficulty:'hard',questionMix:{multipleChoice:2,freeResponse:3,order:'uniform'},winCondition:'first_to_n',targetScore:7,penalties:false,timeLimit:90,developmentNote:'internal-draft'}};
  const before=structuredClone(manifest),rows=recordedSettingRows(manifest),text=JSON.stringify(rows);
@@ -19,4 +19,18 @@ test('unknown historic settings remain unknown and raw future status names are n
  assert.equal(recordedEndLabel('internal_future_reason','finished'),'Finished');
  assert.equal(recordedEndLabel('internal_future_reason','internal_status'),'End reason unavailable');
  assert.deepEqual(recordedSettingRows({replayVersion:1,questionCount:4,settings:{}}).at(-1),['Question types','Multiple choice']);
+});
+
+test('history and replay show saved outcomes independently of whether a round finished', () => {
+  assert.equal(recordedModeLabel('ffa'), 'Multiplayer');
+  assert.equal(recordedResultLabel('unplayed'), 'Unplayed');
+  assert.equal(recordedResultLabel('draw'), 'Draw');
+  assert.equal(recordedResultLabel(undefined), 'No recorded result');
+  assert.equal(recordedTopicLabel('all'), 'Mixed topics');
+  for (const value of ['future_internal_code', 'constructor', null]) {
+    assert.equal(recordedModeLabel(value), 'Unknown mode');
+    assert.equal(recordedTopicLabel(value), 'Unknown topic');
+    assert.equal(recordedDifficultyLabel(value), 'Unknown difficulty');
+  }
+  assert.equal(recordedResultLabel('future_internal_code'), 'Result unavailable');
 });
