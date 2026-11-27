@@ -25,7 +25,7 @@ export function predictLimitMenu(choices) {
   return choices[values.indexOf(target)].choiceId;
 }
 
-export function auditLimitMenus(records) {
+export function auditDisplayedMenus(records, rule, predict) {
   const predictions = [], seen = new Set();
   for (const record of records) {
     const {problemId, problemRevision, contentHash, familyId, choices, answerChoiceId} = record;
@@ -37,14 +37,18 @@ export function auditLimitMenus(records) {
       throw new Error('Invalid source or answer identity for ' + key);
     }
     seen.add(key);
-    const prediction = predictLimitMenu(choices);
+    const prediction = predict(choices);
     if (prediction !== null) {
       predictions.push({problemId, problemRevision, contentHash, familyId, prediction,
         answerChoiceId, matched: prediction === answerChoiceId});
     }
   }
-  return {rule: 'zero-one-infinity-fourth-integer-parity-v1', records: seen.size,
+  return {rule, records: seen.size,
     abstentions: seen.size - predictions.length, predictions};
+}
+
+export function auditLimitMenus(records) {
+  return auditDisplayedMenus(records, 'zero-one-infinity-fourth-integer-parity-v1', predictLimitMenu);
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
