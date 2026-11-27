@@ -65,3 +65,34 @@ test('repair a two-item family collision while retaining exact counts and future
  const tiny=catalog([1,2],[0,0]),unavoidable=selectJointMetadataV2(tiny,{...mix,order:'frq-first'},{rounds:1});
  assert.deepEqual(unavoidable.selected.map(r=>r.family),['f0','f0']);
 });
+
+import {selectJointMetadataV3} from '../lib/server/joint-selection-v3.mjs';
+test('a rolling start preserves scarce format lineages for a second complete window',()=>{
+ const c=catalog([1,2,2,2,3,3],[0,1,2,3,4,5]),grouped={...mix,order:'mcq-first'};
+ function options(blocked=new Set()){
+  let state=22;const rng=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+  return {rounds:2,rng,index:n=>Math.floor(rng()*n),blocked};
+ }
+ const prior=selectJointMetadataV2(c,grouped,options());
+ assert.deepEqual(prior.selected.map(row=>row.lineage),['l5','l4']);
+ const consumed=plan=>new Set(plan.selected.map(r=>r.lineage));
+ assert.equal(aggregateFeasibility(normalizeJointCatalog(c,consumed(prior)),2,2,4).feasible,false);
+ const first=selectJointMetadataV3(c,grouped,options());
+ assert.equal(first.planningRounds,3);assert.equal(first.futureWitness.length,1);
+ const second=selectJointMetadataV3(c,grouped,options(consumed(first)));
+ assert.equal(second.planningRounds,2);
+ const accumulated=[first.selected,second.selected,...second.futureWitness];
+ assert.equal(new Set(accumulated.flat().map(r=>r.lineage)).size,6);
+ for(const round of accumulated)assert.deepEqual(round.map(r=>r.format).sort(),['frq','mcq']);
+ assert.throws(()=>selectJointMetadataV3(c,grouped,options(new Set(['l0','l4']))),/infeasible/);
+});
+test('ten consecutive Olympiad starts each retain a complete ten-round window',()=>{
+ const masks=[1,...Array(18).fill(3),...Array(19).fill(2)];
+ const c=catalog(masks,masks.map((_,i)=>i)),blocked=new Set();let state=1;
+ const rng=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+ for(let start=0;start<10;start++){
+  const plan=selectJointMetadataV3(c,{...mix,order:'uniform'},{rounds:10,blocked,rng,index:n=>Math.floor(rng()*n)});
+  assert.equal(plan.planningRounds,19-start);assert.equal(plan.futureWitness.length,9);
+  for(const row of plan.selected){assert(!blocked.has(row.lineage));blocked.add(row.lineage);}
+ }
+});
