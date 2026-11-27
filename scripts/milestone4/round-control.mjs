@@ -110,12 +110,12 @@ async function writeCatalog(db, before, target) {
     ? `INSERT INTO round_authorization_control(id,incarnation,policy_hash,epoch,control_version,enabled)
        SELECT 1, unhex(?), unhex(?), ?, ?, ? WHERE NOT EXISTS
        (SELECT 1 FROM round_authorization_control WHERE id=1) RETURNING id`
-    : `UPDATE round_authorization_control SET epoch=?, control_version=?, enabled=?
+    : `UPDATE round_authorization_control SET epoch=?, control_version=?, enabled=?, policy_hash=unhex(?)
        WHERE id=1 AND incarnation=unhex(?) AND policy_hash=unhex(?) AND epoch=?
        AND control_version=? AND enabled=? AND writing=0 AND gc_active=0 RETURNING id`;
   const args = before === null
     ? [target.incarnation, target.policyHash, target.epoch, target.version, Number(target.enabled)]
-    : [target.epoch, target.version, Number(target.enabled), before.incarnation, before.policyHash,
+    : [target.epoch, target.version, Number(target.enabled), target.policyHash, before.incarnation, before.policyHash,
       before.epoch, before.version, Number(before.enabled)];
   const {results} = await db.prepare(sql).bind(...args).all();
   if (results.length !== 1) {
@@ -173,6 +173,54 @@ export async function applyRoundControl(store, database, input, verifyRelease) {
     await writeFirestore(store, plan, next, expectedFirestore);
     requireState(integer(target.epoch), 'Firestore fenced; catalog epoch exhausted');
     await writeCatalog(db, plan.expected.catalog, target);
+  }
+  return {firestore: next, catalog: target};
+}
+
+// A private release operation, separate from the signed first-import endpoint.
+// The release owner verifies the precise source, settled budget and intake drain
+// using the dossier identified in the immutable Firestore change receipt.
+export async function replaceDisabledRoundPolicy(store, database, input, verifyTransition) {
+  const plan = snapshot(input);
+  requireState(exact(plan, ['action', 'expected', 'policyHash', 'evidenceHash']) &&
+    plan.action === 'replace-disabled-policy' && digest(plan.policyHash) && digest(plan.evidenceHash) &&
+    exact(plan.expected, ['firestore', 'catalog']), 'Invalid replacement plan');
+  const {firestore, catalog} = plan.expected;
+  checkCatalog(catalog);
+  requireState(gate(firestore) && !firestore.enabled && !catalog.enabled &&
+    firestore.version === catalog.version, 'Policy replacement requires matching disabled controls');
+  requireState(plan.policyHash !== catalog.policyHash, 'Replacement must identify a different policy');
+  // Reserve a later enable and emergency disable, including at the epoch ceiling.
+  requireState(Math.max(catalog.version, catalog.epoch) <= Number.MAX_SAFE_INTEGER - 3,
+    'Insufficient counter space for replacement');
+  const next = {version: firestore.version + 1, enabled: false};
+  const target = {...catalog, ...next, epoch: catalog.epoch + 1, policyHash: plan.policyHash};
+  requireState(typeof verifyTransition === 'function' &&
+    await verifyTransition(plan, snapshot(target)) === true, 'Missing policy transition qualification');
+  const db = session(database);
+  const observed = await store.get(controlPath);
+  if (same(observed, next)) {
+    const receipt = await store.get('roundCreationChanges/v' + next.version);
+    requireState(same(receipt, plan) && same(await readCatalog(db), target),
+      'Committed replacement differs from the stored controls or receipt');
+  } else {
+    requireState(same(observed, firestore), 'Firestore precondition changed');
+    const beforeWrite = await readCatalog(db);
+    requireState(same(beforeWrite, catalog) || same(beforeWrite, target), 'Catalog precondition changed');
+    // Reserve this exact transition before D1 changes. Two dossiers for the
+    // same pair of policy hashes must not claim one another's interrupted write.
+    const claimPath = 'roundPolicyReplacements/v' + next.version;
+    await store.transaction(async tx => {
+      const [current, claim] = await Promise.all([tx.get(controlPath), tx.get(claimPath)]);
+      requireState(same(current, firestore) || same(current, next) && same(claim, plan),
+        'Firestore precondition changed');
+      requireState(claim === null || same(claim, plan), 'Conflicting policy replacement claim');
+      if (claim === null) tx.set(claimPath, plan);
+    });
+    // Both sides stay disabled. A lost D1 acknowledgement is recovered from
+    // the exact target before committing the Firestore gate and plan receipt.
+    await writeCatalog(db, catalog, target);
+    await writeFirestore(store, plan, next);
   }
   return {firestore: next, catalog: target};
 }

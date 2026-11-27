@@ -180,3 +180,26 @@ test('a Study drill availability review covers only the reader and the recorded 
   assert.throws(() => beforeDrillAvailabilityReview({ ...review, predecessor: hash('unrelated') }, current));
   assert.throws(() => beforeDrillAvailabilityReview({ ...review, version: 'study-test-practice-review-1' }, current));
 });
+
+test('the security bridge accepts only its reviewed package, control and drill sources', async () => {
+ const {beforeSecurityPresentation}=await import('../scripts/milestone4/verify-study-admissions.mjs');
+ const {canonical}=await import('../lib/bank/compact-codec.mjs');
+ const sha=value=>createHash('sha256').update(canonical(value)).digest('hex');
+ const files=['package.json','package-lock.json','lib/server/round-creation-policy.json','lib/server/study-practice-activation.json'];
+ const before=Object.fromEntries(files.map(path=>[path,sha(path+' old')]));
+ const after=Object.fromEntries(files.map(path=>[path,sha(path+' new')]));
+ const changes=Object.fromEntries(files.map(path=>[path,{before:before[path],after:after[path]}]));
+ const counts={total:1,identical:1,changed:[]},markup={before:{lockSha256:before['package-lock.json']},
+  after:{lockSha256:after['package-lock.json']},pages:{lessons:counts,paths:counts,tiers:counts}};
+ const drills={policy:sha('policy'),db:sha('db'),reviewOnly:false,scopes:[1,2]};
+ const table=new Map([[sha(markup),markup],[sha(drills),drills]]);
+ const read=key=>table.get(key);
+ const review={version:'study-security-presentation-1',changes,predecessor:sha(before),successor:sha(after),
+  support:{selectorProof:sha(drills),readerMarkup:sha(markup),servedScopes:1,checkedFormats:2,lessonPages:1,pathPages:1,tierPages:1}};
+ assert.deepEqual(beforeSecurityPresentation(review,after,read),before);
+ assert.throws(()=>beforeSecurityPresentation({...review,changes:{...changes,'extra.ts':changes['package.json']}},after,read));
+ assert.throws(()=>beforeSecurityPresentation(review,{...after,'other.ts':sha('extra')},read));
+ assert.throws(()=>beforeSecurityPresentation({...review,predecessor:sha('unrelated')},after,read));
+ assert.throws(()=>beforeSecurityPresentation(review,after,k=>k===sha(drills)?{...drills,reviewOnly:true}:read(k)));
+ assert.throws(()=>beforeSecurityPresentation(review,after,k=>k===sha(markup)?{...markup,pages:{...markup.pages,paths:{...counts,identical:0}}}:read(k)));
+});

@@ -1,3 +1,4 @@
+import { writePublicProfile } from './public-profile-projection.ts';
 import {frDigest as digestCompetitiveSet} from '../bank/free-response-record.mjs';
 import {selectionHistoryToken} from './selection-history-token.mjs';
 import {boundedJsonSnapshot} from './bounded-json-snapshot.mjs';
@@ -26,10 +27,7 @@ const requireMember = (game: GameSession, uid: string) => { if (!game.players.in
 const snapshot = (p: Data) => ({ rating: ratingBalance(p.rating), topicRatings: Object.fromEntries(TOPICS.map(t => [t, ratingBalance(p.topicRatings?.[t])])) });
 export const lobbyExpired = (g: GameSession, time: number) => g.status === 'waiting' && new Date(g.createdAt as any).getTime() + 30 * 60_000 <= time;
 const competitive = (g: GameSession) => ['pvp', 'multiplayer'].includes(g.mode);
-export function publicProfile(profile: Data) {
-  const keys = ['uid', 'displayName', 'handle', 'photoURL', 'color', 'lastActive', 'createdAt', 'rating', 'classification', 'gamesPlayed', 'wins', 'losses', 'draws', 'ratedGames', 'xp', 'topicXp', 'topicRatings', 'topicRatedGames'];
-  return Object.fromEntries(keys.filter(k => profile[k] !== undefined).map(k => [k, profile[k]]));
-}
+export {publicProfile} from './public-profile-projection.ts';
 export function publicGame(game: GameSession) {
   const { questions = [], answers = {} } = game;
   // Deliberate public schema: adding a private submission/diagnostic field to a
@@ -61,7 +59,8 @@ export function saveGame(tx: Transaction, id: string, game: GameSession, reviews
 }
 function saveProfile(tx: Transaction, uid: string, profile: Data) {
   const repaired = clampProfileRatings(profile);
-  tx.set(`users/${uid}`, repaired); tx.set(`users_public/${uid}`, publicProfile(repaired));
+  tx.set(`users/${uid}`, repaired);
+  writePublicProfile(tx, uid, repaired);
 }
 function patchProfile(profile: Data, patch: Data) {
   const allowed = ['displayName', 'handle', 'photoURL', 'color', 'settings'];

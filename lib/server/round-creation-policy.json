@@ -91,8 +91,8 @@
     "lib/server/free-response-eligibility.mjs": "61a716f0a6579ee89bb557d789719dcdcc3fa7a61a808d468653baf04262d3b5",
     "lib/server/free-response-questions.mjs": "2ba6ace89b491258e698894355fed6cbf7a8289f6b751fe656cac4a085369606",
     "lib/server/free-response-selection.mjs": "435d93544f0c1c3bb568eb17f62214e9d6912ee42bb2f757995cb0730ed4f31e",
-    "lib/server/game-api.ts": "38050ae4a88c3e2dae1668894f70c63df3b43c6accb95468f4c3aaad5bcd517b",
-    "lib/server/game-engine.ts": "a0b337f27620e9114c10f15a6a7c0bbb2b628776c734a527bbf314b725cfb4d7",
+    "lib/server/game-api.ts": "02474c6d1355f34df2710533cbbb40a6ca0cf5cc5a6932626761e659a3677083",
+    "lib/server/game-engine.ts": "5eff90e4de69ffb7a3ef7066afe493985dd56da3ddac0e12a5995754f9869253",
     "lib/server/initial-authorized-game.ts": "f2b27e447d06552b510959d5f2d90b822c716900edce5ac9787f43515b07d706",
     "lib/server/joint-selection-error.mjs": "9358b0848bdae0fbbc965ef2e2f326db1a528a99bf8b51bfdeb454cb017e8eed",
     "lib/server/joint-selection-v2.mjs": "57fb16297429468bcc8ca02cf3def068fe56b13819c17237322581d9bd10fc34",
@@ -103,6 +103,8 @@
     "lib/server/mixed-question-catalog.mjs": "879ca1aa914aea71e171391ef7fb4bac65b98c7944ddf86d66ac0e4d85b32fcd",
     "lib/server/mixed-question-selection.mjs": "8738977457037a0a6658b59d2849010b694319b1e53ab5e137f3912fd49ad984",
     "lib/server/prepared-authorization.mjs": "26bf01c35cb2c107c015c1e7c430fac65fe7fe908fd00dd32a8e62bfb2669cd2",
+    "lib/server/public-profile-projection.ts": "2ab2b1f529c58ca9bef02d27f6d761f12d9705bbb478027071faa91a522df769",
+    "lib/server/qa-public-profile.ts": "5e336708a72fbfa2cfb8cbf511022ed976a8c1db0782a3e38fc8a792793dd274",
     "lib/server/questions-policy.mjs": "bfb75d4b7b0d1498a8213627a6e73cd73c024d641e4beb493a355e32412211b2",
     "lib/server/quota.ts": "f61420e9cd3765f1340d61156e014081a14dbffbca57fb03fe22d1266eee04b3",
     "lib/server/replay-recording.ts": "4749fea16b87ad74e2abe9f96a7c61389ab8c97f2f006d8c3295a2e8050ae381",
@@ -127,8 +129,8 @@
     "lib/server/test-round-results.ts": "34a5150e421bd34489410c4574996ca149368ee7ad2cd64900f2ad32522e7c65",
     "lib/solution-format.mjs": "b3c9856d73f4d596e3d5a7b3b4f9bb66ebf2be33f28c174c1f8ff2b1d46c78b1",
     "lib/study/prose.mjs": "9f7303210c1fb1782212f4827a9a8c31b1f3339483a08d2524db29f20d5aac15",
-    "package-lock.json": "76e077370cae1b267e8fec00fe2ea8ecb460aa8e429a78fd301c05104f4fde0c",
-    "package.json": "5a3e215bc490e0846149d803bc072d0561f076ddd00a536d15621bdd011c0aa2",
+    "package-lock.json": "728a801e36eda89015e618ad16b550ac7d5bf20f910fe1df90ff56dbe7ffb5e5",
+    "package.json": "16805b6c26439c40a5a4cbd99b4c7a92282ceb0decccc8e5d4c2133df2986195",
     "scripts/bank/checker-source.mjs": "4759648ebce4a8af679e6e96a07e19de54bee1f9f82206f0631a6943384e6faa",
     "scripts/bank/compile-practice-cells.mjs": "6eb8cdf1f0bacb4292f47c0a9bd3c1602bf06b2bf0ea7419d7f1687378fd7747",
     "scripts/bank/free-response-index.mjs": "0a89626e5545dcd14fefddcd09ffa883e6dc0a68225876e421f500242443b20a",
@@ -136,8 +138,8 @@
     "scripts/bank/free-response.mjs": "1cf6b3ef7ef493f32cf09727438a0ba53eacdcb67fe434ee63211131fe06922a",
     "scripts/milestone4/checker-policy.mjs": "c5a1e3c0ca26fc6327547b47f7f26dc9c0825d1b0e8f87b688e74aa2103d851d",
     "scripts/milestone4/creation-policy.mjs": "1301ec063bac545b342f9d8de4ace50dda594359c13380938828fa35ebc4406a",
-    "scripts/milestone4/round-control.mjs": "f3051a38ba4402d0c000201f3e333afbd9a5f9eb8e941b628793d017238499ee",
+    "scripts/milestone4/round-control.mjs": "32bc466fb20f084731eed01147e3b0691caa04eccd9c35fd75ba13d85f8bb956",
     "scripts/run-framework.mjs": "43930b107bf8e58eff178f496e93389427544aa58536e7ff81caa887cfb22a06"
   },
-  "digest": "28ac498d981860226de0951208a3a3d2084b4386de9253081049b6b22fa9430e"
+  "digest": "662f312980cf9cc7b7b09b96b767d5024eebc8db560674ac37beaf338d7396d4"
 }

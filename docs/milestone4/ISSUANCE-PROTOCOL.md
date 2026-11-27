@@ -137,6 +137,16 @@ Pass the retained input to `applyRoundControl(store, db, plan, verifyRelease)` a
 
 After an administrative restore, keep the external creation gate closed while reconciling both stores and immutable receipts. Requalify a fresh catalog incarnation and advanced versions before enabling creation. Never delete the Firestore fence. Leave readers, saved grades, game snapshots and replay receipts intact. Local service tests establish transition behavior; hosted metering, credentials, release integration, restore and operator revocation still need qualification.
 
+### Replacing a policy on the same catalog
+
+Use the private `replaceDisabledRoundPolicy(store, db, plan, verifyTransition)` operation after the release owner reconciles both controls and closes new preparation intake. Allow existing prepared rounds their original lifetime to activate, expire or cancel. The operator must verify the drain across every serving version before disabling creation. Issued games and saved receipts retain their existing identities.
+
+The plan names the exact matching disabled pair, the replacement policy hash and the SHA-256 of the approved transition evidence. The trusted callback checks the frozen predecessor and target, release and rollback qualification, operator authority and reserved budget. A callback that returns a constant is suitable only for isolated tests. The first-import HTTP route accepts its original operations.
+
+The operation reserves its evidence identity in `roundPolicyReplacements/v<version>`, advances the D1 policy and counters, then commits the Firestore gate and its immutable change receipt. Both gates stay disabled throughout. An interrupted request reuses its exact plan. A different dossier cannot adopt its partially committed write. Enable only after the installed application, new catalog authority and qualification match. Rollback to a qualified compatible reader uses the same operation with new counters. Preserve fixture suppression and all exposed or issued history when selecting that reader.
+
+For paired local verification, use an isolated loopback network with the verified Enterprise emulator binary and local Workerd D1. Check the source-qualified ticket before the transition and recover the same receipt afterward. Measure D1 row operations separately from Firestore document reads and attempted writes. Reserve verification, accounting and shutdown costs separately before a hosted run.
+
 ## Competitive rooms in the private continuation
 
 The host's saved start includes its original topic, difficulty, count, visibility and Multiplayer scoring settings. The API binds these to the authenticated actor and operation. The 30-character room code also works in manual entry. The server checks the full operation digest in private storage before reusing a selection. It holds the common ordered set until activation. A waiting player's questions stay hidden. The 30-minute lease begins at selection.

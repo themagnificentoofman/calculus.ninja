@@ -34,3 +34,69 @@ test('the projection writer used by backfill and rating repair keeps fixtures ou
   }
   assert.equal(docs.size, 1);
 });
+
+test('profile writes keep verified fixtures private and publish ordinary players with the same name', async () => {
+  const {createGameApi} = await import('../lib/server/game-api.ts');
+  const {repairRatingPage} = await import('../lib/server/rating-repair.ts');
+  const docs = new Map();
+  const store = {
+    get: async path => structuredClone(docs.get(path) ?? null),
+    transaction: async action => {
+      const staged = new Map();
+      const result = await action({
+        get: store.get,
+        set: (path, data) => staged.set(path, structuredClone(data)),
+        delete: path => staged.set(path, null),
+      });
+      for (const [path, data] of staged) {
+        if (data === null) docs.delete(path);
+        else docs.set(path, data);
+      }
+      return result;
+    },
+  };
+  let claims = {sub: 'player-one', name: 'Calculus Ninja', email: 'player@example.org'};
+  let verified = 0;
+  let charged = 0;
+  const api = createGameApi({
+    store,
+    verify: async () => { verified++; return claims; },
+    mutationQuota: async () => { charged++; return true; },
+    quota: async () => assert.fail('Profile writes never select questions'),
+    select: async () => assert.fail('Profile writes never select questions'),
+  });
+  const update = () => api('profile', new Request('https://example.test/api/profile', {
+    method: 'POST',
+    headers: {Authorization: 'Bearer local-fixture', 'Content-Type': 'application/json'},
+    body: JSON.stringify({patch: {displayName: 'Calculus Ninja'}}),
+  }));
+
+  assert.equal((await update()).status, 200);
+  assert.equal(verified, 1);
+  const publicPlayer = docs.get('users_public/player-one');
+  assert.equal(publicPlayer.displayName, 'Calculus Ninja');
+  assert.equal('email' in publicPlayer, false);
+
+  claims = {sub: 'fixture-one', email: 'calculus-ninja-qa-c690a3a5-0027-4e40-ba37-2ced79359f69@example.invalid'};
+  assert.equal((await update()).status, 403);
+  assert.equal(verified, 2);
+  assert.equal(charged, 1);
+  assert.equal(docs.has('users/fixture-one'), false);
+
+  // A retained private marker still applies when the sign-in email has changed.
+  claims.email = 'different@example.org';
+  const retained = {...docs.get('users/player-one'), uid: claims.sub, qaFixture: true, xp: 17};
+  docs.set('users/fixture-one', retained);
+  docs.set('users_public/fixture-one', {uid: claims.sub});
+  for (let retry = 0; retry < 2; retry++) {
+    assert.equal((await update()).status, 200);
+    assert.equal(docs.has('users_public/fixture-one'), false);
+    assert.equal(docs.get('users/fixture-one').xp, 17);
+    assert.equal(docs.get('users/fixture-one').qaFixture, true);
+  }
+  docs.set('users/fixture-one', {...docs.get('users/fixture-one'), rating: -1});
+  assert.equal((await repairRatingPage(store, [claims.sub], true)).affected, 1);
+  assert.equal(docs.has('users_public/fixture-one'), false);
+  assert.equal(docs.get('users/fixture-one').rating, 0);
+  assert.deepEqual(docs.get('users_public/player-one'), publicPlayer);
+});
