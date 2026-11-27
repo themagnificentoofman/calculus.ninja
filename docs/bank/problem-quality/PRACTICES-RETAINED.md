@@ -48,3 +48,11 @@ At final handoff, add the actual session and deployment results only after they 
 - Observed result: a detailed finite disposition manifest can exceed one SQL statement even when every question payload is bounded.
 - Retained rule: store a compact, immutable release manifest that cryptographically binds the complete audit artifact and policy arrays; export and verify the actual policy rows independently. Do not remove reasons, rewrite old manifests, or weaken the admission gate to fit a statement.
 - Repeatable check: `tests/quality-delta.test.mjs` verifies that a large policy manifest remains fully bound and its serving representation is bounded. Production import success remains separately required.
+
+## Reviewing what players see
+
+A release can supply a different statement, menu or worked solution through its presentation layer. Recover the qualified application and use the same projections as play and replay before reusing an earlier comparison. Compare each displayed field to its source-bound review. Retain exact matches and record how a difference was resolved. Keep the pre-answer and post-answer views separate. Source metadata can be relevant to authoring even when a player never sees it.
+
+For independent mathematics review, extract the actual displayed question and menu. Remove keys, misconception labels and other fields that identify the intended choice. Record the input digest before the reviewer begins. If a reviewer saw labels, keep the derivation and disclose that limitation. Use a fresh item for a blinded trial.
+
+Screen each revised menu in the context of its family and the affected catalog. Test whether a relationship among the options predicts the correct choice without solving the question. Retain the questions on which the proposed shortcut fails as well as the hits. A changed menu cannot reverse a learner's earlier exposure to an equivalent worked example. Document that historical relationship before counting the revision toward unbiased practice.
