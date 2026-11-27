@@ -203,3 +203,37 @@ test('the security bridge accepts only its reviewed package, control and drill s
  assert.throws(()=>beforeSecurityPresentation(review,after,k=>k===sha(drills)?{...drills,reviewOnly:true}:read(k)));
  assert.throws(()=>beforeSecurityPresentation(review,after,k=>k===sha(markup)?{...markup,pages:{...markup.pages,paths:{...counts,identical:0}}}:read(k)));
 });
+
+test('question-selection copy review binds the six source changes and every previously verified drill',async()=>{
+ const {beforeSelectionCopyPresentation}=await import('../scripts/milestone4/verify-study-admissions.mjs');
+ const {canonical}=await import('../lib/bank/compact-codec.mjs');
+ const sha=s=>createHash('sha256').update(s).digest('hex');
+ const fileSha=v=>sha(JSON.stringify(v,null,2)+'\n');
+ const paths=['bank-selection.ts','compact-bank-selection.ts','free-response-selection.mjs','game-api.ts','joint-selection-error.mjs','runtime-api.ts'].map(n=>'lib/server/'+n);
+ const source=(side)=>Object.fromEntries(paths.map(p=>[p,sha(side+p)]));
+ const evidence=new Map(), proofId=(v)=>{const h=fileSha(v);evidence.set(h,v);return h;};
+ const scopes=['multiple-choice','free-response'].map(format=>({scope:'limits/easy/*',format,rounds:5,example:sha(format)}));
+ function makeSide(label,version){
+  const body={version:'round-creation-policy-v1',sourceHashes:{...source(label),'other':sha('fixed')},policy:{selection:'same selector'},registryHash:sha('registry')};
+  const policy={...body,digest:sha(canonical(body))};
+  const activation={version:1,control:{epoch:version+10,version,incarnation:sha('catalog'),policy:policy.digest},formats:{'limits/easy/*':['multiple-choice','free-response']}};
+  const selectorProof=proofId({reviewOnly:false,policy:policy.digest,db:sha(label),operator:sha('operator'),registry:sha('saved registry'),scopes});
+  return {policy,activation,selectorProof};
+ }
+ const slices=x=>({'lib/server/round-creation-policy.json':fileSha(x.policy),'lib/server/study-practice-activation.json':fileSha(x.activation),'page.tsx':sha('same page')});
+ const before=makeSide('before',5),after=makeSide('after',8);
+ const old=slices(before),current=slices(after);
+ const receipt={version:'study-selection-copy-presentation-1',predecessor:sha(canonical(old)),successor:sha(canonical(current)),before,after};
+ const read=h=>evidence.get(h);
+ assert.deepEqual(beforeSelectionCopyPresentation(receipt,current,read,before.selectorProof),old);
+ assert.throws(()=>beforeSelectionCopyPresentation(receipt,current,read,sha('different predecessor selector proof')));
+ assert.throws(()=>beforeSelectionCopyPresentation({...receipt,predecessor:sha('unknown')},current,read,before.selectorProof));
+ assert.throws(()=>beforeSelectionCopyPresentation(receipt,{...current,'page.tsx':sha('changed')},read,before.selectorProof));
+ const failed={...read(after.selectorProof),scopes:[{...scopes[0],example:sha('different problem')},scopes[1]]};
+ assert.throws(()=>beforeSelectionCopyPresentation({...receipt,after:{...after,selectorProof:proofId(failed)}},current,read,before.selectorProof));
+ const unexpected=structuredClone(after);unexpected.policy.sourceHashes.other=sha('new code');
+ const {digest,...body}=unexpected.policy;unexpected.policy.digest=sha(canonical(body));unexpected.activation.control.policy=unexpected.policy.digest;
+ unexpected.selectorProof=proofId({...read(after.selectorProof),policy:unexpected.policy.digest});
+ const changed=slices(unexpected);
+ assert.throws(()=>beforeSelectionCopyPresentation({...receipt,after:unexpected,successor:sha(canonical(changed))},changed,read,before.selectorProof));
+});

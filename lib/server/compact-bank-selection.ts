@@ -121,7 +121,7 @@ export async function selectBankQuestions(db:Pick<D1Database,'prepare'|'batch'>,
  const eligibleOriginSql=legacyEligibilitySql(eligibleSql);
  const pools=(await db.prepare(POOL_SQL).bind(input.difficulty,input.tag||'*',input.category,input.category,originScope.excludedFamilies).all<Pool>()).results;
  if(!pools.length)throw new BankUnavailableError();
- if(pools.length>MAX_CATALOG_POOLS||pools.reduce((n,p)=>n+p.item_count,0)>MAX_CATALOG_ITEMS)throw new BankUnavailableError('This problem catalog exceeds the supported selection bound. Please report this issue.');
+ if(pools.length>MAX_CATALOG_POOLS||pools.reduce((n,p)=>n+p.item_count,0)>MAX_CATALOG_ITEMS)throw new BankUnavailableError('This round could not be prepared with these settings. Please report the topic and difficulty.');
  const familyCount=new Set(pools.map(p=>p.construction_id)).size,candidates=new Map<string,Candidate>();
  const slots=new Map(pools.map(p=>{let step=Math.max(1,Math.floor(rng()*p.item_count));while(gcd(step,p.item_count)!==1)step=step%p.item_count+1;return [p.pool_id,{start:Math.floor(rng()*p.item_count),step,used:0}];}));
  let probes=0,statements=1,fallbackRows=0,chosen:Candidate[]|null=null,relaxation:RoundSnapshot['relaxation']='none';

@@ -75,10 +75,10 @@
     "lib/server/authorization-catalog.mjs": "3a965cd80bb31564d1de6e473c3af51d66b11cae8c7de210a632419661c0243c",
     "lib/server/bank-pilot-plan.mjs": "32fa4db4d3a2a74fb5e47b84b5e307ff5c341ae76929c65c126b0ded49c0d537",
     "lib/server/bank-pilot.mjs": "0946c643c018146e203b6b35704cbf621042d3152189cc10cc30d51614e34aee",
-    "lib/server/bank-selection.ts": "b92dd1cdfb56d9017493285b281f640b87a470c1cff44509218875717de9080b",
+    "lib/server/bank-selection.ts": "d8755234ec9a11ca8efe8af7b81b961d0f8ef248bef3a9c16e460be39b9a0879",
     "lib/server/bounded-json-snapshot.mjs": "1d49e7ebdada7991f1bd7428f89dc66e763033a7a1b192121413507ec86dddb1",
     "lib/server/catalog-writer.mjs": "35676dc8ea83484e1fd85322f57a3291297a12d54dffdb896a1c3d1161686be9",
-    "lib/server/compact-bank-selection.ts": "08264726b9af8c1e58edc0f9798889ba8d1ae051beec101164f4ff2ecfadeb4c",
+    "lib/server/compact-bank-selection.ts": "3092618d28c5d9fd6cd29400eb4aeaafd2f6b93398cecd41d4487e72e17a606d",
     "lib/server/competitive-catalog.ts": "75e09e48739c6dee501dbcb2009f71b03f72f4c0ddf895dea44ba8b9bacd273f",
     "lib/server/competitive-lifecycle.ts": "0a2956305595744f000adc9d1d3c441a149a714d4212e9bbccb8b371f42f1add",
     "lib/server/content-release-budget.mjs": "4bbc6e98f11355c25f491cf7f08ed16821b7256f188b804fd5ca18c072ea34e7",
@@ -90,11 +90,11 @@
     "lib/server/free-response-catalog-cells.json": "13490283845d58b1b14131973c293deb72a29cd2e40def9eba1341603fb6aac3",
     "lib/server/free-response-eligibility.mjs": "61a716f0a6579ee89bb557d789719dcdcc3fa7a61a808d468653baf04262d3b5",
     "lib/server/free-response-questions.mjs": "2ba6ace89b491258e698894355fed6cbf7a8289f6b751fe656cac4a085369606",
-    "lib/server/free-response-selection.mjs": "435d93544f0c1c3bb568eb17f62214e9d6912ee42bb2f757995cb0730ed4f31e",
-    "lib/server/game-api.ts": "02474c6d1355f34df2710533cbbb40a6ca0cf5cc5a6932626761e659a3677083",
+    "lib/server/free-response-selection.mjs": "3d49395afa8d5bb6f658dc41e63b78563d6c5d31a0bed734f7c736d819a3f19f",
+    "lib/server/game-api.ts": "4ba89de6135589bd9b62125a88f3d364fc9a93eaeea274bc615b8b7de585b637",
     "lib/server/game-engine.ts": "5eff90e4de69ffb7a3ef7066afe493985dd56da3ddac0e12a5995754f9869253",
     "lib/server/initial-authorized-game.ts": "f2b27e447d06552b510959d5f2d90b822c716900edce5ac9787f43515b07d706",
-    "lib/server/joint-selection-error.mjs": "9358b0848bdae0fbbc965ef2e2f326db1a528a99bf8b51bfdeb454cb017e8eed",
+    "lib/server/joint-selection-error.mjs": "b589d03a9629dd83b865a6f8e0259128f38604dca84900298d29ebbe61b80a31",
     "lib/server/joint-selection-v2.mjs": "57fb16297429468bcc8ca02cf3def068fe56b13819c17237322581d9bd10fc34",
     "lib/server/joint-selection.mjs": "cde494ceb89a15b5d3fd6c3b0b3113923c2d1de7f54b14b6c350a7473172c0af",
     "lib/server/legacy-eligibility.json": "e28489815f5c25a147c608960891cc6de6b1c96ca253fd1ad87f9cbc2266639a",
@@ -113,7 +113,7 @@
     "lib/server/round-creation-policy.mjs": "1b0d86cb037f2851de218dd3c5f234f9a0cabee647809f43434ef4cca7e2999a",
     "lib/server/round-creation.mjs": "c1c4c3b94f50eceed0d1a43e605d2a5236af5798edb6cce32011b3f1c2356dc0",
     "lib/server/round-intents.ts": "9b3b55930844b6be5fbb3d7f809a353c44bb54ba733c0f500b6e646324549822",
-    "lib/server/runtime-api.ts": "b758a130f63ebd245099b1a590778bf7c359cf447190cf086a6d2d7720267d8d",
+    "lib/server/runtime-api.ts": "58714b24331d6693337b77f721c5186bf43867e19cc02bdc4bd4a51f70263674",
     "lib/server/selection-history-token.mjs": "93e65edfc614299f1d8bb35dba3b55c95644227b9409f4b1d7d8b1d69ddde933",
     "lib/server/selection-vocabulary.json": "c1cacad8601d64faba3bff9671c2ae1d6580c0bdb66058f1f5e3f0ee1ae776e1",
     "lib/server/selection-vocabulary.mjs": "0ef2dc2eef7f9dbbcee74948016e5c4f0ebd27cdef1801666376ccf470313067",
@@ -141,5 +141,5 @@
     "scripts/milestone4/round-control.mjs": "32bc466fb20f084731eed01147e3b0691caa04eccd9c35fd75ba13d85f8bb956",
     "scripts/run-framework.mjs": "43930b107bf8e58eff178f496e93389427544aa58536e7ff81caa887cfb22a06"
   },
-  "digest": "662f312980cf9cc7b7b09b96b767d5024eebc8db560674ac37beaf338d7396d4"
+  "digest": "d54b259895de6180a49db7dd3517dea060ab7465e2bd5bd51093b172885feff3"
 }
